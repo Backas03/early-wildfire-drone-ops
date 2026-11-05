@@ -26,6 +26,15 @@ curl.exe -fL -o models/fire_s.pt https://raw.githubusercontent.com/AlimTleuliyev
 yolo export model=models/fire_n.pt format=ncnn imgsz=640   # → models/fire_n_ncnn_model/
 ```
 
+## 실제 항공 영상으로 본 것 (2026-11-05)
+
+라즈베리파이 5에서 `fire_n` NCNN으로 유튜브 소방 항공 영상(Simon Butler Aviation, "Lake Spokane aerial firefighting", 480p)을 `--source video:`로 돌려 봤다. 영상 파일은 내부 시험용으로만 쓰고 저장소에 넣지 않는다.
+
+- 숲에서 올라오는 실제 산불 연기는 0.8 이상으로 잘 잡는다.
+- **물보라·안개를 연기로 잡는다.** 소방 비행기가 호수에서 물을 퍼 올릴 때 생기는 물보라를 0.7~0.86으로 잡았고, 날개 쪽 뿌연 부분도 0.68로 잡았다. 3분 동안 연기 사진 23장이 서버로 갔는데 대부분 물보라였다.
+- → 서버 쪽 재확인(`fire_s`)과 화재 판정 규칙(이벤트 서버)이 꼭 필요하다. 드론 시점 오탐 사진을 모아 추가 학습하는 것도 방법이다.
+- 1장 추론 78~82 ms (영상 디코딩 포함 부하), 쿨러 없이 CPU 74~75°C.
+
 ## 시뮬레이션에서 잰 탐지율 (참고값)
 
 `python sim/evaluate_detection.py`로 잰다. 가상 화재 3곳(지름 3~6 m) 바로 위, 고도 30·40 m, 방향 12가지 = 72장 기준 (신뢰도 0.4 이상):
