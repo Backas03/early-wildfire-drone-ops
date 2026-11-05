@@ -20,7 +20,7 @@ log = logging.getLogger("dashboard-api.drones")
 router = APIRouter(prefix="/api/drones", tags=["drones"])
 
 ACCEPT_TIMEOUT_S = 10.0  # 이 안에 accepted가 안 오면 드론이 응답하지 않는 것
-FINISH_TIMEOUT_S = {"mission_upload": 90.0, "mission_download": 90.0, "mission_clear": 20.0, "set_mode": 20.0}
+FINISH_TIMEOUT_S = {"mission_upload": 90.0, "mission_download": 90.0, "mission_clear": 20.0, "set_mode": 20.0, "goto": 20.0}
 
 
 @router.post("/{drone_id}/commands")

@@ -308,3 +308,76 @@
     flex-direction: column;
   }
 }
+
+/* 지도 우클릭 메뉴 (이 위치로 보내기 · 웨이포인트 찍기 · 영역 순찰) */
+.task-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.task-menu p,
+.task-panel p {
+  margin: 0;
+}
+.task-menu button,
+.task-buttons button {
+  text-align: left;
+}
+.task-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.task-row input {
+  width: 4.5em;
+}
+.task-split {
+  border-top: 1px solid var(--border);
+  margin: 2px 0;
+}
+.task-panel {
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.3);
+  padding: 8px 10px;
+  width: 270px;
+  max-width: calc(100vw - 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.task-panel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-direction: row !important;
+}
+.task-menu .bad,
+.task-panel .bad {
+  color: var(--bad);
+}
+.map.drawing {
+  cursor: crosshair;
+}
+.map-toast {
+  position: absolute;
+  z-index: 1000;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(520px, calc(100% - 120px));
+  pointer-events: none;
+}
+.map-toast .notice {
+  margin: 0;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.3);
+}

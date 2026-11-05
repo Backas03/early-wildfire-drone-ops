@@ -93,6 +93,8 @@ export type Command =
   | { type: 'mission_download' }
   | { type: 'mission_clear' }
   | { type: 'set_mode'; mode: FlightMode }
+  /** 이 위치로 가서 멈춤 (GUIDED). alt는 홈 기준 m. 떠 있을 때만 */
+  | { type: 'goto'; lat: number; lon: number; alt: number }
 
 export interface CommandAck {
   v: number

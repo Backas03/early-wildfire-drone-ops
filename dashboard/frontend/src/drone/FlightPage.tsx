@@ -21,6 +21,7 @@ import type { LiveState } from '../useLiveFeed.ts'
 import { cameraFootprint } from './camera.ts'
 import EdgePanel from './EdgePanel.tsx'
 import FlightMap from './FlightMap.tsx'
+import type { GotoTarget, TaskDrone } from './MapTasks.tsx'
 import { useDroneCommand, type Notice } from './useDroneCommand.ts'
 
 const DEFAULT_CENTER: LatLon = { lat: 35.8964, lon: 128.8495 }
@@ -78,6 +79,8 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
   const [now, setNow] = useState(() => Date.now())
   const modeCmd = useDroneCommand(live.acks)
   const missionCmd = useDroneCommand(live.acks)
+  const taskCmd = useDroneCommand(live.acks) // 지도 우클릭 메뉴 (이 위치로 보내기 · 웨이포인트 · 영역 순찰)
+  const [gotoTargets, setGotoTargets] = useState<Record<string, GotoTarget>>({})
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000)
@@ -134,6 +137,50 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
     if (!selectedId) return
     if (!window.confirm(`${selectedId}에 들어 있는 미션을 지울까요?`)) return
     missionCmd.run(selectedId, { type: 'mission_clear' }, '드론 미션 삭제', `${selectedId}의 미션을 지웠어요`)
+  }
+
+  // 지도 우클릭 메뉴에서 쓰는 드론: FC가 연결된 것만
+  const taskDrones: TaskDrone[] = ids
+    .filter((id) => live.drones[id]?.online && live.drones[id]?.fc_connected)
+    .map((id) => {
+      const t = live.telemetry[id]
+      const h = live.drones[id]?.home
+      return {
+        id,
+        pos: t && hasPosition(t) ? { lat: t.position.lat, lon: t.position.lon } : null,
+        alt: t ? t.position.alt_rel : null,
+        armed: !!t?.flight.armed,
+        mode: t?.flight.mode ?? '?',
+        home: h ? { lat: h.lat, lon: h.lon } : null,
+      }
+    })
+  // GUIDED로 가는 중인 드론만 목표를 보여 준다 (다른 모드로 바뀌면 목표는 끝)
+  const activeTargets = Object.values(gotoTargets).filter((g) => live.telemetry[g.droneId]?.flight.mode === 'GUIDED')
+
+  const gotoHere = async (droneId: string, at: LatLon, alt: number) => {
+    const ack = await taskCmd.run(
+      droneId,
+      { type: 'goto', lat: at.lat, lon: at.lon, alt },
+      '이 위치로 보내기',
+      `${droneId}: 지정한 위치로 가는 중이에요 (도착하면 그 자리에서 대기)`,
+    )
+    if (ack) setGotoTargets((s) => ({ ...s, [droneId]: { droneId, at, alt } }))
+    return !!ack
+  }
+
+  // 지도에서 만든 미션: (AUTO로 비행 중이면 일시 정지) → 올리기 → (떠 있으면) 출발
+  const runQuickMission = async (droneId: string, plan: MissionPlan) => {
+    const f = live.telemetry[droneId]?.flight
+    if (f?.armed && f.mode === 'AUTO') {
+      if (!(await taskCmd.run(droneId, { type: 'set_mode', mode: 'BRAKE' }, '일시 정지', null))) return false
+    }
+    if (!(await taskCmd.run(droneId, { type: 'mission_upload', mission: plan }, '미션 올리기', null))) return false
+    if (!f?.armed) {
+      taskCmd.setNotice({ kind: 'ok', text: `${droneId}에 올렸어요. 조종기로 시동을 건 뒤 “미션 시작·재개”를 누르세요` })
+      return true
+    }
+    await taskCmd.run(droneId, { type: 'set_mode', mode: 'AUTO' }, '출발', `${droneId}: 새 경로로 출발했어요`)
+    return true
   }
 
   const refreshMission = () => {
@@ -194,7 +241,7 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
                     key={b.mode}
                     className={[b.cls ?? '', tel?.flight.mode === b.mode ? 'current' : ''].join(' ')}
                     title={b.title}
-                    disabled={!linkOk || !!modeCmd.running}
+                    disabled={!linkOk || !!modeCmd.running || !!taskCmd.running}
                     onClick={() => setMode(b)}
                   >
                     {b.label}
@@ -226,7 +273,9 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
                 </button>
               </div>
               <CommandStatus running={missionCmd.running?.label} progress={missionCmd.progress} notice={missionCmd.notice} />
-              <p className="muted small note">새 미션은 “미션 계획” 탭에서 만들고 “드론에 업로드”로 올려요.</p>
+              <p className="muted small note">
+                새 미션은 “미션 계획” 탭에서 만들고 “드론에 업로드”로 올려요. 간단한 경로는 지도를 우클릭해 바로 찍을 수 있어요.
+              </p>
             </section>
 
             <section className="panel">
@@ -266,7 +315,17 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
           footprint={tel && hasPosition(tel) && live.edge[selectedId ?? '']?.online ? cameraFootprint(tel) : null}
           simFires={live.simFires}
           onPlaceJump={() => setSettings((s) => ({ ...s, follow: false }))}
+          tasks={{
+            drones: taskDrones,
+            busy: !!taskCmd.running || !!modeCmd.running || !!missionCmd.running,
+            targets: activeTargets,
+            onGoto: gotoHere,
+            onRun: runQuickMission,
+          }}
         />
+        <div className="map-toast">
+          <CommandStatus running={taskCmd.running?.label} progress={null} notice={taskCmd.notice} />
+        </div>
         {!usingVworld && <p className="tile-note">VWorld 키가 없어서 OpenStreetMap을 쓰는 중 (README 참고)</p>}
       </div>
     </div>

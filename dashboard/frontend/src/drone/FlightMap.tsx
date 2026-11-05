@@ -11,6 +11,7 @@ import { droneIcon, homeIcon, wpIcon, type DroneMarker } from '../mission/mapIco
 import PlaceSearch from '../mission/PlaceSearch.tsx'
 import type { MissionPlan, SimFires } from '../protocol.ts'
 import type { TrailPoint } from '../useLiveFeed.ts'
+import MapTasks, { type GotoTarget, type TaskDrone } from './MapTasks.tsx'
 
 interface Props {
   drones: DroneMarker[]
@@ -31,6 +32,14 @@ interface Props {
   simFires: SimFires | null
   /** 장소 검색으로 지도를 옮겼을 때 (따라가기를 꺼야 드론 쪽으로 되돌아가지 않는다) */
   onPlaceJump: () => void
+  /** 우클릭 메뉴(이 위치로 보내기·웨이포인트 찍기·영역 순찰) */
+  tasks: {
+    drones: TaskDrone[]
+    busy: boolean
+    targets: GotoTarget[]
+    onGoto: (droneId: string, at: LatLon, alt: number) => Promise<boolean>
+    onRun: (droneId: string, plan: MissionPlan) => Promise<boolean>
+  }
 }
 
 const PATH_COLOR = '#ff8c00'
@@ -48,6 +57,7 @@ export default function FlightMap(props: Props) {
       <BaseLayers />
       <PlaceSearch onJump={props.onPlaceJump} />
       <FlightContent {...props} />
+      <MapTasks {...props.tasks} defaultDroneId={props.selectedId} />
     </MapContainer>
   )
 }
