@@ -10,6 +10,9 @@
   python edge-ai/edge.py --source video:sample.mp4
   python edge-ai/edge.py --source cam:0
 
+  # 탐지 결과를 화면 창으로 보기 (--show). 라즈베리파이 바탕화면에 띄우면 VNC로 볼 수 있다.
+  # SSH에서 실행할 때는 바탕화면을 알려 준다: DISPLAY=:0 XAUTHORITY=~/.Xauthority python edge-ai/edge.py ... --show
+
 하는 일 (초당 --rate 번)
 - 프레임마다 탐지 결과 발행: inference/{id}/detections (못 찾아도 빈 목록으로)
 - 불·연기를 찾으면 원본 사진 발행: drone/{id}/snapshot (같은 탐지가 이어지면 --snapshot-interval 초마다 한 장)
@@ -23,7 +26,9 @@ from __future__ import annotations
 import argparse
 import base64
 import logging
+import os
 import signal
+import sys
 import threading
 import time
 import uuid
@@ -53,6 +58,68 @@ def cpu_temp_c() -> float | None:
         return round(int(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000, 1)
     except (OSError, ValueError):
         return None
+
+
+BOX_COLORS = {"fire": (0, 0, 255), "smoke": (255, 200, 0)}  # BGR: 불 빨강, 연기 하늘색
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+
+def annotate(frame: np.ndarray, dets: list[Detection], info: str) -> np.ndarray:
+    """탐지 상자·신뢰도와 위쪽 상태 한 줄을 그린 사본. cv2 글꼴은 한글을 못 그려서 영어로 쓴다."""
+    img = frame.copy()
+    h, w = img.shape[:2]
+    scale = max(0.4, w / 1600)
+    thick = max(1, round(w / 640))
+    for d in dets:
+        x1, y1, x2, y2 = (round(v * s) for v, s in zip(d.bbox, (w, h, w, h)))
+        color = BOX_COLORS.get(d.cls, (0, 255, 0))
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, thick + 1)
+        label = f"{d.cls} {d.conf:.2f}"
+        (tw, th), base = cv2.getTextSize(label, FONT, scale, thick)
+        ty = max(y1, th + base + 2)  # 상자가 화면 맨 위에 붙어 있으면 글자를 상자 안쪽에
+        cv2.rectangle(img, (x1, ty - th - base - 2), (x1 + tw + 4, ty), color, -1)
+        cv2.putText(img, label, (x1 + 2, ty - base), FONT, scale, (255, 255, 255), thick, cv2.LINE_AA)
+    (tw, th), base = cv2.getTextSize(info, FONT, scale, thick)
+    cv2.rectangle(img, (0, 0), (tw + 12, th + base + 12), (0, 0, 0), -1)
+    cv2.putText(img, info, (6, th + 6), FONT, scale, (255, 255, 255), thick, cv2.LINE_AA)
+    return img
+
+
+class Viewer:
+    """--show: 탐지 결과 창. 창을 닫거나 q를 눌러도 탐지·발행은 계속한다 (창만 꺼짐)."""
+
+    TITLE = "edge-ai: fire / smoke detection"
+
+    def __init__(self, width: int = 960):
+        self.width = width
+        self.shown = False
+        self.on = sys.platform == "win32" or bool(os.environ.get("DISPLAY"))
+        if not self.on:
+            # 화면 없이 Qt 창을 열면 프로그램이 통째로 죽는다 → 미리 걸러서 탐지는 계속
+            log.warning("화면(DISPLAY)이 없어 탐지 창 없이 계속한다. SSH에서는 DISPLAY=:0 을 붙여 실행")
+            return
+        cv2.namedWindow(self.TITLE, cv2.WINDOW_NORMAL)
+
+    def show(self, img: np.ndarray) -> None:
+        if not self.on:
+            return
+        if not self.shown:
+            h, w = img.shape[:2]
+            cv2.resizeWindow(self.TITLE, self.width, round(h * self.width / w))
+        cv2.imshow(self.TITLE, img)
+        self.shown = True
+
+    def wait(self, seconds: float) -> None:
+        """창이 멈춰 보이지 않게 화면 이벤트를 처리하면서 기다린다."""
+        key = cv2.waitKey(max(1, round(seconds * 1000))) & 0xFF
+        if key == ord("q") or (self.shown and cv2.getWindowProperty(self.TITLE, cv2.WND_PROP_VISIBLE) < 1):
+            self.close()
+
+    def close(self) -> None:
+        if self.on:
+            cv2.destroyWindow(self.TITLE)
+            self.on = False
+            log.info("탐지 창을 닫았다 (탐지는 계속)")
 
 
 class SnapshotPolicy:
@@ -86,6 +153,19 @@ class EdgeRunner:
         self.next_preview = 0.0
         self.next_status = 0.0
         self.detail: str | None = None
+        self.last_frame: np.ndarray | None = None  # --show 창에 그릴 마지막 프레임
+
+    def info_line(self) -> str:
+        """탐지 창 위쪽에 쓰는 한 줄: 모델 | 카메라 | 초당 횟수 | 추론 시간 | CPU 온도"""
+        s = self.status()
+        parts = [f"{s.model}", f"{s.source}"]
+        if s.fps:
+            parts.append(f"{s.fps:.1f} Hz")
+        if s.infer_ms:
+            parts.append(f"infer {s.infer_ms:.0f} ms")
+        if s.cpu_temp_c:
+            parts.append(f"CPU {s.cpu_temp_c:.0f} C")
+        return " | ".join(parts)
 
     def status(self, online: bool = True) -> EdgeStatus:
         n = len(self.recent)
@@ -113,6 +193,7 @@ class EdgeRunner:
         frame, frame_ts = got
         h, w = frame.shape[:2]
         dets, ms = self.detector.detect(frame)
+        self.last_frame = frame
         self.recent.append((now, ms))
         while self.recent and now - self.recent[0][0] > 5:
             self.recent.popleft()
@@ -176,6 +257,7 @@ def main() -> None:
     ap.add_argument("--tilt", type=float, default=0.0, help="sim: 카메라 앞쪽 기울기 deg (0 = 바로 아래)")
     ap.add_argument("--mqtt-host", default="127.0.0.1")
     ap.add_argument("--mqtt-port", type=int, default=1883)
+    ap.add_argument("--show", action="store_true", help="탐지 결과를 화면 창에 띄움 (닫아도 탐지는 계속)")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -205,21 +287,34 @@ def main() -> None:
         client.publish(topic, model.model_dump_json(), qos=qos, retain=retain)
 
     runner = EdgeRunner(args.drone_id, source, detector, publish, args)
+    viewer = Viewer() if args.show else None
+
+    def pause(seconds: float) -> None:
+        if viewer and viewer.on:
+            viewer.wait(seconds)
+        else:
+            stop.wait(seconds)
+
     log.info("시작: %s, %s, 초당 %.1f번 (Ctrl+C로 종료)", source.kind, detector.name, args.rate)
     period = 1 / args.rate
     next_t = time.monotonic()
     while not stop.is_set():
         now = time.monotonic()
-        if runner.step(now) is None:
-            stop.wait(0.3)  # 카메라가 아직 준비 안 됨
+        dets = runner.step(now)
+        if dets is None:
+            pause(0.3)  # 카메라가 아직 준비 안 됨
             next_t = time.monotonic()
             continue
+        if viewer and viewer.on and runner.last_frame is not None:
+            viewer.show(annotate(runner.last_frame, dets, runner.info_line()))
         next_t += period
         if next_t < time.monotonic():  # 밀렸으면 따라잡으려 하지 않는다
             next_t = time.monotonic()
-        stop.wait(max(0.0, next_t - time.monotonic()))
+        pause(max(0.0, next_t - time.monotonic()))
 
     log.info("종료")
+    if viewer:
+        viewer.close()
     client.publish(topics.edge(args.drone_id), runner.status(online=False).model_dump_json(), qos=1, retain=True).wait_for_publish(2)
     source.close()
     client.loop_stop()

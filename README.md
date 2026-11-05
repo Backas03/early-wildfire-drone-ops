@@ -133,6 +133,7 @@ python3 -m venv --system-site-packages .venv             # apt로 깐 picamera2�
 ```
 
 - 대시보드 **실시간 관제 → 카메라 · AI 탐지**에서 초당 탐지 횟수, 추론 시간, CPU 온도를 볼 수 있다. 80°C를 넘으면 쿨러를 확인한다.
+- 라즈베리파이 화면(VNC)에서 탐지 창 보기: `--show`. SSH에서 실행할 때는 앞에 `DISPLAY=:0 XAUTHORITY=~/.Xauthority`를 붙인다. 창을 닫거나 `q`를 눌러도 탐지는 계속된다. 창과 VNC가 CPU를 더 써서 쿨러 없이 초당 5번이면 75°C 가까이 오른다 (초당 3번은 70°C 안팎).
 - 카메라 없이 시험: `--source sim` (서버 PC에서 `sim/fake_drone.py`나 SITL을 켜 두면 그 위치에서 본 가상 카메라), `--source video:파일.mp4`, `--source cam:0`
 - 전원 확인: `vcgencmd get_throttled`가 `0x0`이 아니면 전압이 떨어진 적이 있다. 라즈베리파이 5는 5V 5A(27W) 전원이 필요하다.
 

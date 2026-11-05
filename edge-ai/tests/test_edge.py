@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from detector import model_name, to_detections
-from edge import EdgeRunner, SnapshotPolicy
+from edge import BOX_COLORS, EdgeRunner, SnapshotPolicy, annotate
 from protocol import Detection
 
 NAMES = {0: "smoke", 1: "fire"}  # wildfire-detection 모델 순서
@@ -22,6 +22,16 @@ def test_to_detections_maps_by_name_and_cleans_boxes():
     )
     # 신뢰도 순, 0번=smoke·1번=fire, 화면 밖 좌표는 1로, 폭 0인 상자와 모르는 클래스는 버림
     assert [(d.cls, d.conf, d.bbox) for d in dets] == [("fire", 0.83, (0.5, 0.5, 1.0, 0.9)), ("smoke", 0.41, (0.1, 0.2, 0.3, 0.4))]
+
+
+def test_annotate_draws_boxes_on_a_copy():
+    frame = np.zeros((360, 640, 3), np.uint8)
+    fire = Detection(cls="fire", conf=0.83, bbox=(0.25, 0.5, 0.75, 0.9))
+    out = annotate(frame, [fire], "fire_n | sim")
+    assert out.shape == frame.shape and not frame.any()  # 원본은 그대로
+    assert tuple(out[270, 160]) == BOX_COLORS["fire"]  # 상자 왼쪽 변 (x=0.25*640, y는 상자 중간)
+    assert out[5:20, 5:60].any()  # 위쪽 상태 줄
+    assert not out[340, 600].any()  # 상자 밖은 그대로
 
 
 def test_model_name():
