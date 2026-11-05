@@ -219,6 +219,31 @@
 .snapshots .det-box b {
   display: none; /* 작은 사진에서는 상자만 */
 }
+/* 서버 재확인: 확인됨은 경보 색, 오탐 의심은 흐리게 */
+.snapshots li.rejected .det-img {
+  opacity: 0.45;
+  filter: grayscale(0.7);
+}
+.check {
+  align-self: flex-start;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  border-radius: 4px;
+  padding: 0 5px;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.check.confirmed {
+  background: var(--bad-bg);
+  color: var(--bad);
+}
+.check.rejected {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
 
 /* Leaflet 기본 툴팁(흰 배경)보다 우선하도록 .leaflet-tooltip을 같이 쓴다 */
 .leaflet-tooltip.sim-fire-label {

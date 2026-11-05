@@ -9,6 +9,7 @@ import {
   type EdgeStatus,
   type ServerStatus,
   type SimFires,
+  type SnapshotCheck,
   type SnapshotInfo,
   type StatusText,
   type Telemetry,
@@ -35,6 +36,8 @@ export interface LiveState {
   detections: Record<string, DetectionFrame>
   previews: Record<string, CameraPreview>
   snapshots: Record<string, SnapshotInfo[]>
+  /** 사진보다 먼저 온 서버 재확인 결과 (snapshot_id별). 사진이 오면 붙이고 지운다 */
+  earlyChecks: Record<string, SnapshotCheck>
   /** 시뮬레이션 가상 화재 정답 위치 */
   simFires: SimFires | null
 }
@@ -52,11 +55,13 @@ const initial: LiveState = {
   detections: {},
   previews: {},
   snapshots: {},
+  earlyChecks: {},
   simFires: null,
 }
 
 const TEXTS_KEPT = 50
 const SNAPSHOTS_KEPT = 20
+const EARLY_CHECKS_KEPT = 50
 const ACKS_KEPT = 30
 const TRAIL_KEPT = 3000 // 2Hz로 25분
 const TRAIL_MIN_STEP_DEG = 0.000005 // 약 0.5 m. 제자리에 있을 때 점이 쌓이지 않게
@@ -107,9 +112,24 @@ function reduce(s: LiveState, topic: string, data: unknown): LiveState {
     case 'edge/preview':
       return { ...s, previews: { ...s.previews, [id]: data as CameraPreview } }
     case 'snapshot': {
-      const snap = data as SnapshotInfo
+      const early = s.earlyChecks[(data as SnapshotInfo).snapshot_id]
+      const snap = { ...(data as SnapshotInfo), check: (data as SnapshotInfo).check ?? early ?? null }
       const rest = (s.snapshots[id] ?? []).filter((x) => x.snapshot_id !== snap.snapshot_id)
-      return { ...s, snapshots: { ...s.snapshots, [id]: [snap, ...rest].slice(0, SNAPSHOTS_KEPT) } }
+      const earlyChecks = early ? { ...s.earlyChecks } : s.earlyChecks
+      if (early) delete earlyChecks[snap.snapshot_id]
+      return { ...s, earlyChecks, snapshots: { ...s.snapshots, [id]: [snap, ...rest].slice(0, SNAPSHOTS_KEPT) } }
+    }
+    case 'snapshot/check': {
+      const c = data as SnapshotCheck
+      const list = s.snapshots[id] ?? []
+      if (list.some((x) => x.snapshot_id === c.snapshot_id)) {
+        const next = list.map((x) => (x.snapshot_id === c.snapshot_id ? { ...x, check: c } : x))
+        return { ...s, snapshots: { ...s.snapshots, [id]: next } }
+      }
+      const earlyChecks = { ...s.earlyChecks, [c.snapshot_id]: c }
+      const keys = Object.keys(earlyChecks)
+      if (keys.length > EARLY_CHECKS_KEPT) delete earlyChecks[keys[0]]
+      return { ...s, earlyChecks }
     }
     case 'cmd/ack': {
       const a = data as CommandAck
@@ -135,7 +155,7 @@ export function useLiveFeed(): [LiveState, (droneId: string) => void] {
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
       ws = new WebSocket(`${proto}://${location.host}/ws`)
       // 다시 붙으면 서버가 최근 FC 문장·탐지 사진을 처음부터 다시 보내므로 비운다
-      ws.onopen = () => setState((s) => ({ ...s, connected: true, texts: {}, snapshots: {} }))
+      ws.onopen = () => setState((s) => ({ ...s, connected: true, texts: {}, snapshots: {}, earlyChecks: {} }))
       ws.onclose = () => {
         setState((s) => ({ ...s, connected: false }))
         if (!closed) retry = window.setTimeout(connect, 2000)

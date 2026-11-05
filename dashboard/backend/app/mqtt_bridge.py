@@ -8,11 +8,12 @@ import asyncio
 import json
 import logging
 import os
-from collections import defaultdict, deque
+from collections import OrderedDict, defaultdict, deque
 
 import paho.mqtt.client as mqtt
+from pydantic import ValidationError
 
-from protocol import ServerStatus, topics
+from protocol import ServerStatus, SnapshotCheck, topics
 
 from .media import save_snapshot
 
@@ -29,6 +30,7 @@ FORWARD = [
     topics.ALL_EDGE,
     topics.ALL_EDGE_PREVIEW,
     topics.ALL_SNAPSHOT,
+    topics.ALL_SNAPSHOT_CHECK,
     topics.SIM_FIRES,
     topics.EVENTS,
     topics.ALL_SERVER_STATUS,
@@ -37,6 +39,7 @@ QUEUE_MAX = 200  # 느린 브라우저 때문에 메모리가 쌓이지 않게
 # 새로 연 브라우저에도 보여 주려고 드론마다 보관하는 개수
 TEXTS_KEPT = 30
 SNAPSHOTS_KEPT = 20
+EARLY_CHECKS_KEPT = 50  # 사진보다 먼저 온 재확인 결과 (보통은 사진이 먼저 온다)
 # 마지막 값만 기억했다가 새 브라우저에 먼저 보내는 토픽 (retained가 아니어도)
 LATEST = ("/status", "/mission", "/edge")
 
@@ -51,6 +54,7 @@ class MqttBridge:
         self._retained: dict[str, object] = {}
         self._texts: defaultdict[str, deque] = defaultdict(lambda: deque(maxlen=TEXTS_KEPT))
         self._snapshots: defaultdict[str, deque] = defaultdict(lambda: deque(maxlen=SNAPSHOTS_KEPT))
+        self._early_checks: OrderedDict[str, dict] = OrderedDict()
         self._ack_waiters: dict[str, asyncio.Queue] = {}
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="dashboard-api")
         offline = ServerStatus(name="dashboard-api", online=False)
@@ -126,6 +130,12 @@ class MqttBridge:
             data = save_snapshot(data)
             if data is None:
                 return
+        elif msg.topic.endswith("/snapshot/check"):
+            try:
+                SnapshotCheck.model_validate(data)
+            except ValidationError as e:
+                log.warning("잘못된 재확인 결과 무시: %s", str(e)[:200])
+                return
         if msg.retain or msg.topic.endswith(LATEST) or msg.topic == topics.SIM_FIRES:
             self._retained[msg.topic] = data
         if self._loop:
@@ -134,7 +144,10 @@ class MqttBridge:
     def _fanout(self, topic: str, data: object) -> None:
         if topic.endswith("/statustext"):
             self._texts[topics.drone_id_from(topic)].append(data)
+        elif topic.endswith("/snapshot/check"):
+            self._attach_check(topics.drone_id_from(topic), data)
         elif topic.endswith("/snapshot"):
+            data["check"] = self._early_checks.pop(data["snapshot_id"], None)
             self._snapshots[topics.drone_id_from(topic)].append(data)
         elif topic.endswith("/cmd/ack") and isinstance(data, dict):
             waiter = self._ack_waiters.get(data.get("cmd_id"))
@@ -144,6 +157,17 @@ class MqttBridge:
             if q.full():
                 q.get_nowait()  # 가장 오래된 것 버림
             q.put_nowait((topic, data))
+
+    def _attach_check(self, drone_id: str, check: dict) -> None:
+        """서버 재확인 결과를 보관 중인 사진에 붙인다 (새로 연 브라우저도 보게)."""
+        sid = check["snapshot_id"]
+        for snap in self._snapshots[drone_id]:
+            if snap.get("snapshot_id") == sid:
+                snap["check"] = check
+                return
+        self._early_checks[sid] = check
+        while len(self._early_checks) > EARLY_CHECKS_KEPT:
+            self._early_checks.popitem(last=False)
 
 
 _bridge: MqttBridge | None = None

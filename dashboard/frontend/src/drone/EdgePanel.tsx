@@ -1,5 +1,5 @@
 // 실시간 관제: 드론 카메라 미리보기와 엣지 AI(라즈베리파이) 탐지 결과
-import type { CameraPreview, Detection, DetectionFrame, EdgeStatus, SnapshotInfo } from '../protocol.ts'
+import type { CameraPreview, Detection, DetectionFrame, EdgeStatus, SnapshotCheck, SnapshotInfo } from '../protocol.ts'
 import { CLS_LABEL } from './camera.ts'
 
 const STALE_MS = 5000
@@ -10,6 +10,29 @@ const ago = (now: number, ts: number) => {
   return s <= 1 ? '방금' : s < 60 ? `${s}초 전` : `${Math.floor(s / 60)}분 전`
 }
 const clock = (ts: number) => new Date(ts).toLocaleTimeString('ko-KR', { hour12: false })
+
+/** 신뢰도 % (내림: 0.598이 기준 60%를 넘은 것처럼 "60%"로 보이지 않게) */
+const pct = (conf: number) => `${Math.floor(conf * 100)}%`
+
+/** 서버 재확인(큰 모델) 결과 표시. 재확인 전이거나 꺼져 있으면 아무것도 안 그린다 */
+function CheckBadge({ check }: { check?: SnapshotCheck | null }) {
+  if (!check) return null
+  const found = check.detections.map((d) => `${CLS_LABEL[d.cls]} ${pct(d.conf)}`).join(', ') || '없음'
+  const title = `서버 재확인 (${check.model}, 기준 ${Math.round(check.threshold * 100)}%): ${found}`
+  if (check.verdict === 'rejected') {
+    return (
+      <span className="check rejected" title={title}>
+        오탐 의심
+      </span>
+    )
+  }
+  const top = check.detections[0]
+  return (
+    <span className="check confirmed" title={title}>
+      서버 확인{top && ` · ${CLS_LABEL[top.cls]} ${pct(top.conf)}`}
+    </span>
+  )
+}
 
 /** 사진 위에 탐지 상자를 겹쳐 그린다 (bbox는 0~1이라 크기와 상관없음) */
 export function DetectionImage({ src, detections, alt }: { src: string; detections: Detection[]; alt: string }) {
@@ -109,13 +132,14 @@ export default function EdgePanel({ status, preview, frame, snapshots, now }: Pr
           </h4>
           <ul className="snapshots">
             {snapshots.slice(0, SNAPSHOTS_SHOWN).map((s) => (
-              <li key={s.snapshot_id}>
+              <li key={s.snapshot_id} className={s.check?.verdict === 'rejected' ? 'rejected' : undefined}>
                 <a href={s.url} target="_blank" rel="noreferrer" title="원본 사진 열기">
                   <DetectionImage src={s.url} detections={s.detections} alt={`${clock(s.frame_ts)} 탐지 사진`} />
                 </a>
                 <span className="small">
                   {clock(s.frame_ts)} <span className="muted">({ago(now, s.frame_ts)})</span>
                 </span>
+                <CheckBadge check={s.check} />
               </li>
             ))}
           </ul>

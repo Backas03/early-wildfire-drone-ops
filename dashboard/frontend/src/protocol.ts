@@ -175,6 +175,22 @@ export interface SnapshotInfo {
   model: string
   detections: Detection[]
   url: string
+  /** 서버 재확인 결과 (아직 안 했거나 재확인이 꺼져 있으면 없음) */
+  check?: SnapshotCheck | null
+}
+
+/** drone/{id}/snapshot/check: 탐지 사진을 서버의 큰 모델(fire_s)로 다시 본 결과 */
+export interface SnapshotCheck {
+  v: number
+  ts: number
+  drone_id: string
+  snapshot_id: string
+  model: string
+  /** confirmed: 불·연기 맞음, rejected: 오탐 의심 */
+  verdict: 'confirmed' | 'rejected'
+  threshold: number
+  detections: Detection[]
+  infer_ms: number
 }
 
 /** drone/{id}/edge/preview: 관제용 작은 미리보기 */
