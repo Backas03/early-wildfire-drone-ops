@@ -25,6 +25,8 @@ MODELS = {
     "CameraPreview": messages.CameraPreview,
     "SimFires": messages.SimFires,
     "EventMessage": messages.EventMessage,
+    "EventList": messages.EventList,
+    "EventStatusCmd": messages.EventStatusCmd,
     "ServerStatus": messages.ServerStatus,
     "MissionPlan": mission.MissionPlan,
 }

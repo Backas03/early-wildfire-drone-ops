@@ -18,7 +18,7 @@
  ├─ MediaMTX      : 영상 중계
  ├─ 대시보드 API   : MQTT ⇄ 브라우저(WebSocket), 명령 발행, 미션 저장, 탐지 사진 저장(media/)
  ├─ 서버 재확인    : 탐지 사진을 큰 모델(fire_s)로 다시 확인해 오탐을 거름 (이벤트 서버 안에서)
- └─ 이벤트·로깅    : 탐지 + 텔레메트리 구독 → 화재 판정 → DB → events 발행
+ └─ 이벤트·로깅    : 탐지 + 텔레메트리 + 재확인 → 화재 판정(땅 위 위치로 묶기) → DB → events 발행
 ```
 
 **하이브리드 구조 (2026-11-02 결정):** 탐지는 드론의 라즈베리파이가 하고(엣지 AI), 서버는 엣지가 보낸 사진을 큰 모델로 한 번 더 확인한다. LTE가 약해도 드론이 스스로 판단하고, 보내는 데이터는 탐지 결과와 사진 몇 장으로 줄어든다. 계획서(10월)의 "서버에서 YOLOv8 추론"에서 바뀐 부분이다.
@@ -50,7 +50,9 @@
 | `drone/{id}/snapshot/check` | 이벤트 서버(재확인) → API, 이벤트 판정 | 1 | X | `SnapshotCheck` | 탐지 사진마다 |
 | `drone/{id}/edge/preview` | edge-ai → API | 0 | X | `CameraPreview` | 1Hz (설정) |
 | `sim/fires` | 가상 카메라 → API | 1 | O | `SimFires` | 시뮬레이션 시작 시 (시뮬레이션 전용) |
-| `events` | 이벤트 서버 → API | 1 | X | `EventMessage` | 이벤트 생성·변경 시 |
+| `events` | 이벤트 서버 → API | 1 | X | `EventMessage` | 이벤트 생성·변경 시 (같은 이벤트의 갱신은 5초에 한 번) |
+| `events/recent` | 이벤트 서버 → API | 1 | O | `EventList` | 이벤트가 바뀔 때 (최근 50개) |
+| `events/cmd` | API → 이벤트 서버 | 1 | X | `EventStatusCmd` | 사람이 이벤트 상태를 바꿀 때 |
 | `server/{name}/status` | 각 서버 → API | 1 | O | `ServerStatus` | 시작·종료 시 + LWT |
 
 - **LWT (Last Will)**: 연결할 때 "내가 끊기면 이걸 대신 발행해 줘"라고 브로커에 맡겨 두는 메시지. drone-agent와 각 서버는 `online: false` 메시지를 LWT로 등록한다. 그래서 LTE가 끊기면 대시보드에 바로 "오프라인"이 뜬다.
@@ -147,11 +149,35 @@ LWT로 등록하는 메시지는 `"online": false`, `"fc_connected": false`.
              "classes": ["fire", "smoke"], "max_conf": 0.86,
              "first_seen": 1761552000400, "last_seen": 1761552003000,
              "lat": 35.8971, "lon": 128.8502,
-             "snapshot_url": "/media/snapshots/evt_....jpg", "detection_count": 9 } }
+             "snapshot_url": "/media/snapshots/drone1-1761552000400-a1b2c3.jpg", "detection_count": 9,
+             "check_confirmed": 2, "check_rejected": 1, "radius_m": 4.2 } }
 ```
 
-- `status`: `new`(신규) → `acknowledged`(확인) → `resolved`(종료) 또는 `false_alarm`(오탐).
-- `lat/lon`은 탐지 당시 **드론 위치**다 (화재 지점 자체의 추정은 이후 단계에서).
+- `status`: `new`(신규) → `acknowledged`(확인) → `resolved`(종료) 또는 `false_alarm`(오탐). 바꾸는 것은 사람이다 (`events/cmd`).
+- `lat/lon`은 **화재 추정 위치**: 탐지 박스 가운데를 그 프레임 시각의 드론 위치·고도·방향으로 땅(평평하다고 봄)에 투영한 점들의 평균. `radius_m`은 그 점들이 퍼진 정도(표준편차).
+- `snapshot_url`은 대표 탐지 사진 (서버 재확인에서 확인된 것 중 큰 모델 신뢰도가 가장 높은 것). 사진은 대시보드 API가 `media/`에 저장한 것이다.
+- **판정 규칙** (`event-server/event_server/judge.py`, 기본값은 `--help`로 바꿀 수 있다):
+  1. 엣지 박스 신뢰도 0.4 이상, 드론 고도 25 m 이상일 때만 센다 (이착륙 중 오탐 거름).
+  2. 40 m 안의 탐지는 같은 화재 후보로 묶는다.
+  3. 최근 10초에 서로 다른 프레임 3장 이상에서 잡히고, 서버 재확인 "확인됨"이 1장 이상이면서 "오탐 의심"보다 적지 않으면 이벤트(`created`)가 된다. 재확인을 끄면 프레임 6장.
+  4. 오탐으로 표시한 곳의 탐지는 그 이벤트에 조용히 쌓이고 다시 알리지 않는다. 종료한 곳에서 다시 잡히면 새 이벤트다.
+- 시뮬레이션 확인 (2026-11-05, 고도 35 m 정지 비행, 라즈베리파이 가상 카메라): 가상 화재 B 위에서 11초 만에 이벤트가 생겼고 추정 위치는 정답에서 13 m → 박스 192개 평균 5.8 m. 가상 화재 C는 엣지(0.40~0.48)·서버(0.6 미만) 모두 확신이 낮아 후보로만 남았다.
+
+### 4.6-1 `EventList` — `events/recent` (retain)
+
+```json
+{ "v": 1, "ts": 1761552003000, "events": [ { "event_id": "evt_...", "status": "acknowledged", "...": "FireEvent와 같음" } ] }
+```
+
+- 마지막으로 본 시각 순 최근 50개. 대시보드를 새로 열어도 바로 보이게 retained로 둔다. 이벤트는 이벤트 서버의 SQLite(`event-server/data/events.db`)에 남는다.
+
+### 4.6-2 `EventStatusCmd` — `events/cmd`
+
+```json
+{ "v": 1, "ts": 1761552010000, "event_id": "evt_...", "status": "false_alarm" }
+```
+
+- 브라우저는 `POST /api/events/{event_id}/status` (`{"status": ...}`)로 보낸다. API가 발행하고, 이벤트 서버가 바꾼 이벤트(`events`의 `updated`)를 기다려 HTTP 응답으로 돌려준다 (이벤트 서버가 꺼져 있으면 409, 응답이 없으면 504).
 
 ### 4.7 `ServerStatus` — `server/{name}/status` (retain, LWT)
 
@@ -291,3 +317,4 @@ FC가 보내는 문장(MAVLink `STATUSTEXT`) 그대로. 시동 거부 이유(`Pr
 | 1 (초안) | 2026-11-02 | 엣지 AI(하이브리드) 구조로: `DetectionFrame`을 드론이 발행, `infer_ms` 추가. `EdgeStatus`·`Snapshot`·`CameraPreview`·`SimFires` 토픽 추가 |
 | 1 (초안) | 2026-11-05 | 서버 재확인 결과 `SnapshotCheck` 토픽 추가 (`drone/{id}/snapshot/check`) |
 | 1 (초안) | 2026-11-05 | `goto` 명령 추가 (이 위치로 보내기). 모르는 명령은 옛 drone-agent가 `failed`로 돌려준다 |
+| 1 (초안) | 2026-11-05 | 화재 판정: `FireEvent.lat/lon`을 드론 위치 → 화재 추정 위치로, `check_confirmed`·`check_rejected`·`radius_m` 추가. `events/recent`(`EventList`)·`events/cmd`(`EventStatusCmd`) 추가 |

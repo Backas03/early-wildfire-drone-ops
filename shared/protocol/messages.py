@@ -272,24 +272,45 @@ class SimFires(_Msg):
 
 # ---------------------------------------------------------------------------
 # events  (이벤트 서버 → 대시보드, QoS 1)
+# 이벤트 서버가 탐지 프레임·서버 재확인을 모아 "화재 의심"으로 판정한 것.
+# status: new(신규) → acknowledged(확인함) → resolved(종료) 또는 false_alarm(오탐). 바꾸는 것은 사람.
 # ---------------------------------------------------------------------------
+EventStatus = Literal["new", "acknowledged", "resolved", "false_alarm"]
+
+
 class FireEvent(BaseModel):
     event_id: str
-    drone_id: str
-    status: Literal["new", "acknowledged", "resolved", "false_alarm"]
+    drone_id: str = Field(description="처음 찾은 드론")
+    status: EventStatus
     classes: list[Literal["fire", "smoke"]]
     max_conf: float = Field(ge=0, le=1)
     first_seen: int
     last_seen: int
-    lat: float = Field(description="탐지 당시 드론 위치 (화재 위치 추정값)")
+    lat: float = Field(description="화재 추정 위치: 탐지 박스 가운데를 땅에 투영한 점들의 평균")
     lon: float
-    snapshot_url: str | None = None
-    detection_count: int = 0
+    snapshot_url: str | None = Field(default=None, description="대표 탐지 사진 (서버 재확인에서 확인된 것 우선)")
+    detection_count: int = Field(default=0, description="이 위치에서 찾은 박스 수")
+    check_confirmed: int = Field(default=0, description="서버 재확인에서 불·연기로 확인된 사진 수")
+    check_rejected: int = Field(default=0, description="서버 재확인에서 오탐 의심으로 나온 사진 수")
+    radius_m: float | None = Field(default=None, description="탐지 위치가 퍼진 정도 (표준편차 m)")
 
 
 class EventMessage(_Msg):
     action: Literal["created", "updated"]
     event: FireEvent
+
+
+# events/recent  (이벤트 서버 → 대시보드, QoS 1, retained)
+# 최근 이벤트 목록 (마지막으로 본 시각 순, 최대 50개). 대시보드를 새로 열어도 바로 보이게.
+class EventList(_Msg):
+    events: list[FireEvent]
+
+
+# events/cmd  (대시보드 API → 이벤트 서버, QoS 1)
+# 사람이 이벤트 상태를 바꾼다. 이벤트 서버가 저장하고 events로 updated를 발행한다.
+class EventStatusCmd(_Msg):
+    event_id: str = Field(min_length=1)
+    status: EventStatus
 
 
 # ---------------------------------------------------------------------------

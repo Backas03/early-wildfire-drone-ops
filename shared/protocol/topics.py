@@ -54,6 +54,9 @@ def detections(drone_id: str) -> str:
 
 # 이벤트 서버 → 대시보드
 EVENTS = "events"
+EVENTS_RECENT = "events/recent"  # retained: 최근 이벤트 목록
+# 대시보드 API → 이벤트 서버: 이벤트 상태 바꾸기
+EVENTS_CMD = "events/cmd"
 
 
 # 각 서버의 생존 상태 (대시보드 "시스템 상태" 화면용)

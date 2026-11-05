@@ -1,0 +1,34 @@
+{
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "event_id": {
+      "minLength": 1,
+      "title": "Event Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "new",
+        "acknowledged",
+        "resolved",
+        "false_alarm"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "event_id",
+    "status"
+  ],
+  "title": "EventStatusCmd",
+  "type": "object"
+}

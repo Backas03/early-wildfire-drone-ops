@@ -7,6 +7,7 @@
           "type": "string"
         },
         "drone_id": {
+          "description": "처음 찾은 드론",
           "title": "Drone Id",
           "type": "string"
         },
@@ -46,7 +47,7 @@
           "type": "integer"
         },
         "lat": {
-          "description": "탐지 당시 드론 위치 (화재 위치 추정값)",
+          "description": "화재 추정 위치: 탐지 박스 가운데를 땅에 투영한 점들의 평균",
           "title": "Lat",
           "type": "number"
         },
@@ -64,12 +65,39 @@
             }
           ],
           "default": null,
+          "description": "대표 탐지 사진 (서버 재확인에서 확인된 것 우선)",
           "title": "Snapshot Url"
         },
         "detection_count": {
           "default": 0,
+          "description": "이 위치에서 찾은 박스 수",
           "title": "Detection Count",
           "type": "integer"
+        },
+        "check_confirmed": {
+          "default": 0,
+          "description": "서버 재확인에서 불·연기로 확인된 사진 수",
+          "title": "Check Confirmed",
+          "type": "integer"
+        },
+        "check_rejected": {
+          "default": 0,
+          "description": "서버 재확인에서 오탐 의심으로 나온 사진 수",
+          "title": "Check Rejected",
+          "type": "integer"
+        },
+        "radius_m": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "탐지 위치가 퍼진 정도 (표준편차 m)",
+          "title": "Radius M"
         }
       },
       "required": [
