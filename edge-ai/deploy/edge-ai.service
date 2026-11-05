@@ -1,0 +1,21 @@
+# 라즈베리파이에서 엣지 AI를 부팅할 때 자동으로 켜는 systemd 사용자 서비스 (sudo 필요 없음).
+# 설치: bash edge-ai/deploy/install.sh  (@REPO@는 설치할 때 저장소 경로로 바뀐다)
+# 설정: ~/.config/edge-ai.env 의 EDGE_ARGS
+[Unit]
+Description=edge-ai: camera -> YOLO fire/smoke detection -> MQTT
+After=network-online.target
+
+[Service]
+WorkingDirectory=@REPO@
+EnvironmentFile=%h/.config/edge-ai.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=@REPO@/.venv/bin/python @REPO@/edge-ai/edge.py $EDGE_ARGS
+# 사용자 journal이 꺼져 있는 경우가 많아 로그는 파일로 (tail -f ~/edge-ai.log)
+StandardOutput=append:%h/edge-ai.log
+StandardError=inherit
+# 죽으면(카메라 오류, 화면이 아직 안 뜬 상태에서 --show 등) 5초 뒤 다시 켠다
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
