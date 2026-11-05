@@ -38,6 +38,11 @@ def snapshot(drone_id: str) -> str:
     return f"drone/{drone_id}/snapshot"
 
 
+# 서버 재확인 → 대시보드·이벤트 판정: 탐지 사진을 큰 모델로 다시 본 결과
+def snapshot_check(drone_id: str) -> str:
+    return f"drone/{drone_id}/snapshot/check"
+
+
 # 시뮬레이션 전용: 가상 화재 정답 위치
 SIM_FIRES = "sim/fires"
 
@@ -65,6 +70,7 @@ ALL_STATUSTEXT = "drone/+/statustext"
 ALL_EDGE = "drone/+/edge"
 ALL_EDGE_PREVIEW = "drone/+/edge/preview"
 ALL_SNAPSHOT = "drone/+/snapshot"
+ALL_SNAPSHOT_CHECK = "drone/+/snapshot/check"
 ALL_DETECTIONS = "inference/+/detections"
 ALL_SERVER_STATUS = "server/+/status"
 

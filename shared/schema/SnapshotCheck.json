@@ -1,0 +1,113 @@
+{
+  "$defs": {
+    "Detection": {
+      "properties": {
+        "cls": {
+          "enum": [
+            "fire",
+            "smoke"
+          ],
+          "title": "Cls",
+          "type": "string"
+        },
+        "conf": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "bbox": {
+          "description": "x1,y1,x2,y2 (0~1로 정규화)",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cls",
+        "conf",
+        "bbox"
+      ],
+      "title": "Detection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "description": "다시 본 Snapshot",
+      "pattern": "^[A-Za-z0-9_-]{1,80}$",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "model": {
+      "description": "재확인에 쓴 모델 (예: fire_s)",
+      "title": "Model",
+      "type": "string"
+    },
+    "verdict": {
+      "description": "confirmed: 불·연기 맞음, rejected: 오탐 의심",
+      "enum": [
+        "confirmed",
+        "rejected"
+      ],
+      "title": "Verdict",
+      "type": "string"
+    },
+    "threshold": {
+      "description": "이 신뢰도 이상인 불·연기가 있으면 confirmed",
+      "title": "Threshold",
+      "type": "number"
+    },
+    "detections": {
+      "description": "큰 모델이 찾은 것 (bbox는 사진 기준)",
+      "items": {
+        "$ref": "#/$defs/Detection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "infer_ms": {
+      "title": "Infer Ms",
+      "type": "number"
+    }
+  },
+  "required": [
+    "drone_id",
+    "snapshot_id",
+    "model",
+    "verdict",
+    "threshold",
+    "detections",
+    "infer_ms"
+  ],
+  "title": "SnapshotCheck",
+  "type": "object"
+}

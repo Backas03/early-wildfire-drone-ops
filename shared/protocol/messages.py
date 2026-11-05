@@ -217,6 +217,20 @@ class Snapshot(_Msg):
 
 
 # ---------------------------------------------------------------------------
+# drone/{id}/snapshot/check  (서버 재확인 → 대시보드·이벤트 판정, QoS 1)
+# 탐지 사진을 서버의 큰 모델(fire_s)로 다시 본 결과. 엣지(fire_n)의 오탐을 거른다.
+# ---------------------------------------------------------------------------
+class SnapshotCheck(_Msg):
+    drone_id: str
+    snapshot_id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,80}$", description="다시 본 Snapshot")
+    model: str = Field(description="재확인에 쓴 모델 (예: fire_s)")
+    verdict: Literal["confirmed", "rejected"] = Field(description="confirmed: 불·연기 맞음, rejected: 오탐 의심")
+    threshold: float = Field(description="이 신뢰도 이상인 불·연기가 있으면 confirmed")
+    detections: list[Detection] = Field(description="큰 모델이 찾은 것 (bbox는 사진 기준)")
+    infer_ms: float
+
+
+# ---------------------------------------------------------------------------
 # drone/{id}/edge/preview  (엣지 AI → 대시보드, QoS 0)
 # 관제용 작은 미리보기 (기본 1초에 한 장). 실시간 영상(MediaMTX)이 생기기 전까지 쓰고,
 # 그 뒤에도 LTE가 약할 때 대신 쓸 수 있다.

@@ -21,6 +21,7 @@ MODELS = {
     "DetectionFrame": messages.DetectionFrame,
     "EdgeStatus": messages.EdgeStatus,
     "Snapshot": messages.Snapshot,
+    "SnapshotCheck": messages.SnapshotCheck,
     "CameraPreview": messages.CameraPreview,
     "SimFires": messages.SimFires,
     "EventMessage": messages.EventMessage,

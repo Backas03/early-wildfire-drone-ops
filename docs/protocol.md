@@ -17,7 +17,7 @@
  ├─ Mosquitto     : MQTT 브로커 (localhost:1883, 드론은 Tailscale로 접속)
  ├─ MediaMTX      : 영상 중계
  ├─ 대시보드 API   : MQTT ⇄ 브라우저(WebSocket), 명령 발행, 미션 저장, 탐지 사진 저장(media/)
- ├─ 서버 재확인    : 탐지 사진을 큰 모델(fire_s)로 다시 확인해 오탐을 거름 (예정)
+ ├─ 서버 재확인    : 탐지 사진을 큰 모델(fire_s)로 다시 확인해 오탐을 거름 (이벤트 서버 안에서)
  └─ 이벤트·로깅    : 탐지 + 텔레메트리 구독 → 화재 판정 → DB → events 발행
 ```
 
@@ -47,6 +47,7 @@
 | `inference/{id}/detections` | edge-ai → API, 이벤트 서버 | 0 | X | `DetectionFrame` | 추론한 프레임마다 (2~5Hz) |
 | `drone/{id}/edge` | edge-ai → 전체 | 1 | O | `EdgeStatus` | 5초마다 + LWT |
 | `drone/{id}/snapshot` | edge-ai → API(저장), 서버 재확인 | 1 | X | `Snapshot` | 불·연기를 찾았을 때 (몇 초에 한 장) |
+| `drone/{id}/snapshot/check` | 이벤트 서버(재확인) → API, 이벤트 판정 | 1 | X | `SnapshotCheck` | 탐지 사진마다 |
 | `drone/{id}/edge/preview` | edge-ai → API | 0 | X | `CameraPreview` | 1Hz (설정) |
 | `sim/fires` | 가상 카메라 → API | 1 | O | `SimFires` | 시뮬레이션 시작 시 (시뮬레이션 전용) |
 | `events` | 이벤트 서버 → API | 1 | X | `EventMessage` | 이벤트 생성·변경 시 |
@@ -210,7 +211,7 @@ FC가 보내는 문장(MAVLink `STATUSTEXT`) 그대로. 시동 거부 이유(`Pr
 
 - 대시보드 API가 받아서 `media/snapshots/{snapshot_id}.jpg`로 저장하고, 브라우저에는 `jpeg_b64` 대신 `"url": "/media/snapshots/....jpg"`를 붙여 넘긴다.
 - `snapshot_id`는 영문·숫자·`-`·`_`만 (파일 이름으로 쓰므로). 사진은 5 MB 이하 JPEG.
-- 서버 재확인(예정)은 이 사진을 큰 모델(fire_s)로 다시 본다.
+- 서버 재확인은 이 사진을 큰 모델(fire_s)로 다시 보고 `SnapshotCheck`(4.14)를 발행한다.
 
 ### 4.12 `CameraPreview` — `drone/{id}/edge/preview`
 
@@ -224,6 +225,20 @@ FC가 보내는 문장(MAVLink `STATUSTEXT`) 그대로. 시동 거부 이유(`Pr
 { "v": 1, "ts": 1761552000000, "scenario": "대구대 캠퍼스 남쪽 하천 풀밭",
   "fires": [ { "fire_id": "A", "lat": 35.89632, "lon": 128.8504, "size_m": 6, "smoke": true } ] }
 ```
+
+### 4.14 `SnapshotCheck` — `drone/{id}/snapshot/check`
+
+서버 재확인 결과. 이벤트 서버가 `Snapshot`을 받아 큰 모델(fire_s)로 다시 보고 발행한다. 엣지(fire_n)의 오탐을 거르는 용도.
+
+```json
+{ "v": 1, "ts": 1761552001100, "drone_id": "drone1", "snapshot_id": "drone1-1761552000400-ab12cd",
+  "model": "fire_s", "verdict": "confirmed", "threshold": 0.6,
+  "detections": [ { "cls": "smoke", "conf": 0.84, "bbox": [0.44, 0.03, 0.97, 0.55] } ], "infer_ms": 75.2 }
+```
+
+- `verdict`: 큰 모델이 불·연기를 `threshold` 이상으로 찾으면 `confirmed`, 아니면 `rejected`(오탐 의심).
+- 기준 0.6은 소방 항공 영상 스냅샷 123장으로 정했다 ([`models/README.md`](../models/README.md)). 물보라·안개처럼 연기와 닮은 것은 다 거르지 못하므로 이벤트 판정에서 한 번 더 거른다.
+- 대시보드 API는 보관 중인 사진에 `"check"`로 붙여서 새로 연 브라우저에도 보여 준다. 사진보다 먼저 오면 잠시 기억했다가 붙인다.
 
 ## 5. 미션 (`MissionPlan`)
 
@@ -272,3 +287,4 @@ FC가 보내는 문장(MAVLink `STATUSTEXT`) 그대로. 시동 거부 이유(`Pr
 | 1 (초안) | 2026-10-29 | `MissionPlan.home` 추가 (선택 필드라 버전 유지) |
 | 1 (초안) | 2026-11-02 | `DroneMission`·`StatusText` 토픽 추가. `MISSION_ITEM_INT` frame을 6 → 3으로 (FC는 둘 다 받음). `Telemetry.mission.total`을 홈 제외 항목 수로 바로잡음 (전에는 1 적게 나옴) |
 | 1 (초안) | 2026-11-02 | 엣지 AI(하이브리드) 구조로: `DetectionFrame`을 드론이 발행, `infer_ms` 추가. `EdgeStatus`·`Snapshot`·`CameraPreview`·`SimFires` 토픽 추가 |
+| 1 (초안) | 2026-11-05 | 서버 재확인 결과 `SnapshotCheck` 토픽 추가 (`drone/{id}/snapshot/check`) |

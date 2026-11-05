@@ -67,5 +67,7 @@ def test_mission_validation():
 def test_topics():
     assert topics.telemetry("drone1") == "drone/drone1/telemetry"
     assert topics.drone_id_from("inference/drone7/detections") == "drone7"
+    assert topics.snapshot_check("drone1") == "drone/drone1/snapshot/check"
+    assert topics.drone_id_from(topics.snapshot_check("drone2")) == "drone2"
     with pytest.raises(ValueError):
         topics.drone_id_from("events")
