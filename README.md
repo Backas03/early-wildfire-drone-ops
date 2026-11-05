@@ -12,7 +12,7 @@
 | [`shared/`](shared/) | 프로토콜 코드 (pydantic 모델). 모든 Python 서버가 import | 초안 |
 | [`dashboard/backend/`](dashboard/backend/) | 대시보드 API (FastAPI): 미션 저장(SQLite), `.waypoints` 입출력, 드론 명령, WebSocket | 미션·드론 명령 API |
 | [`dashboard/frontend/`](dashboard/frontend/) | 대시보드 웹 (React + TypeScript + Vite + Leaflet) | 미션 계획, 실시간 관제 |
-| [`event-server/`](event-server/) | 이벤트·로깅 서버: 화재 판정, DB 저장, 알림 | 뼈대 |
+| [`event-server/`](event-server/) | 이벤트·로깅 서버: 서버 재확인(fire_s), 화재 판정, DB 저장, 알림 | 서버 재확인 · 화재 판정은 4단계 |
 | [`drone-agent/`](drone-agent/) | 라즈베리파이용: Pixhawk(MAVLink) ⇄ MQTT 중계 | 텔레메트리, 미션 업로드·다운로드, 모드 변경 |
 | [`edge-ai/`](edge-ai/) | 라즈베리파이용: 카메라 → YOLOv8 불·연기 탐지 → MQTT (엣지 AI) | 라즈베리파이 5에서 동작 확인 · 카메라 모듈 시험 전 |
 | [`models/`](models/) | 탐지 모델 (`fire_n`·`fire_s`, 받는 방법은 [`models/README.md`](models/README.md)) | |
@@ -57,7 +57,7 @@ wsl bash sim/sitl/run_sitl.sh                                   # 터미널 A
 #      drone-agent와 같은 이름(drone1)을 쓰므로 둘 중 하나만 켠다
 .\.venv\Scripts\python.exe sim/fake_drone.py
 
-# 4. 이벤트 서버 (선택)
+# 4. 이벤트 서버: 탐지 사진을 큰 모델(fire_s)로 서버 재확인 → 대시보드 탐지 사진에 "서버 확인"/"오탐 의심"
 cd event-server; ..\.venv\Scripts\python.exe -m event_server.main
 ```
 
@@ -134,6 +134,7 @@ python3 -m venv --system-site-packages .venv             # apt로 깐 picamera2�
 
 - 대시보드 **실시간 관제 → 카메라 · AI 탐지**에서 초당 탐지 횟수, 추론 시간, CPU 온도를 볼 수 있다. 80°C를 넘으면 쿨러를 확인한다.
 - 라즈베리파이 화면(VNC)에서 탐지 창 보기: `--show`. SSH에서 실행할 때는 앞에 `DISPLAY=:0 XAUTHORITY=~/.Xauthority`를 붙인다. 창을 닫거나 `q`를 눌러도 탐지는 계속된다. 창과 VNC가 CPU를 더 써서 쿨러 없이 초당 5번이면 75°C 가까이 오른다 (초당 3번은 70°C 안팎).
+- **부팅할 때 자동으로 켜기** (드론에서는 SSH로 켤 수 없으므로): `bash edge-ai/deploy/install.sh` (sudo 필요 없음). 설정은 `~/.config/edge-ai.env`의 `EDGE_ARGS` (예시: [`edge-ai/deploy/edge-ai.env.example`](edge-ai/deploy/edge-ai.env.example)), 고친 뒤 `systemctl --user restart edge-ai`. 로그는 `tail -f ~/edge-ai.log`. 사용자 서비스라 바탕화면 자동 로그인과 함께 켜진다 (자동 로그인 없이 켜려면 한 번 `sudo loginctl enable-linger $USER`).
 - 카메라 없이 시험: `--source sim` (서버 PC에서 `sim/fake_drone.py`나 SITL을 켜 두면 그 위치에서 본 가상 카메라), `--source video:파일.mp4`, `--source cam:0`
 - 전원 확인: `vcgencmd get_throttled`가 `0x0`이 아니면 전압이 떨어진 적이 있다. 라즈베리파이 5는 5V 5A(27W) 전원이 필요하다.
 
@@ -160,7 +161,7 @@ MQTT 메시지 직접 보기:
 ## 테스트
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest shared/tests dashboard/backend/tests drone-agent/tests edge-ai/tests sim/tests
+.\.venv\Scripts\python.exe -m pytest shared/tests dashboard/backend/tests drone-agent/tests edge-ai/tests event-server/tests sim/tests
 npm test --prefix dashboard/frontend    # 순찰 경로·미션 검증 계산
 ```
 
@@ -178,7 +179,7 @@ npm test --prefix dashboard/frontend    # 순찰 경로·미션 검증 계산
 | 1. 미션 계획 화면 | 10/30~11/8 | 지도 웨이포인트 편집, 자동 순찰경로, 검증, 미션 저장, `.waypoints` 입출력 | 구현 완료 · Mission Planner 호환 확인 필요 |
 | 2. 드론 연결 | 11/9~11/22 | 미션 업로드/다운로드, 모드 변경, 실시간 지도 표시 | SITL로 구현·비행 확인 · 실기체 확인 필요 |
 | 3. 엣지 AI | 11/9~11/22 | 라즈베리파이 탐지(edge-ai), 가상 카메라, 탐지 사진 저장, 관제 화면 | 라즈베리파이 5에서 가상 카메라로 동작 확인 (NCNN 73 ms/장, 초당 3번) · 카메라 모듈 시험 필요 |
-| 3-2. 서버 재확인·영상 | 11/23~11/29 | 탐지 사진을 fire_s로 재확인, MediaMTX·브라우저 WebRTC 재생 | |
+| 3-2. 서버 재확인·영상 | 11/23~11/29 | 탐지 사진을 fire_s로 재확인, MediaMTX·브라우저 WebRTC 재생 | 서버 재확인 구현 (이벤트 서버, 기준 0.6) · 영상 재생 전 |
 | 4. 이벤트·로깅 | 11/23~12/6 | 화재 판정(낮은 고도·재확인 반영), DB, 알림, 비행 기록 | |
 | 5. 실기체 통합 | 12/7~ | RPi 설치, Tailscale, 벤치 테스트 → 시험 비행 | |
 
