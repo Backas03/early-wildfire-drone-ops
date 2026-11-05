@@ -1,5 +1,58 @@
 {
   "$defs": {
+    "GotoCmd": {
+      "description": "이 위치로 가서 멈춘다 (GUIDED). 떠 있을 때만 받는다. 미션은 미션 시작·재개(AUTO)로 이어서 비행",
+      "properties": {
+        "v": {
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "integer"
+        },
+        "cmd_id": {
+          "description": "UUID. ack와 짝을 맞출 때 사용",
+          "minLength": 1,
+          "title": "Cmd Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "goto",
+          "default": "goto",
+          "title": "Type",
+          "type": "string"
+        },
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "alt": {
+          "description": "홈(이륙 지점) 기준 고도 m",
+          "exclusiveMinimum": 0,
+          "maximum": 150.0,
+          "title": "Alt",
+          "type": "number"
+        }
+      },
+      "required": [
+        "cmd_id",
+        "lat",
+        "lon",
+        "alt"
+      ],
+      "title": "GotoCmd",
+      "type": "object"
+    },
     "MissionClearCmd": {
       "properties": {
         "v": {
@@ -316,6 +369,7 @@
   },
   "discriminator": {
     "mapping": {
+      "goto": "#/$defs/GotoCmd",
       "mission_clear": "#/$defs/MissionClearCmd",
       "mission_download": "#/$defs/MissionDownloadCmd",
       "mission_upload": "#/$defs/MissionUploadCmd",
@@ -335,6 +389,9 @@
     },
     {
       "$ref": "#/$defs/SetModeCmd"
+    },
+    {
+      "$ref": "#/$defs/GotoCmd"
     }
   ]
 }

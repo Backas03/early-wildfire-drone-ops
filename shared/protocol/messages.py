@@ -12,7 +12,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, TypeAdapter
 
-from .mission import MissionPlan
+from .mission import MAX_ALT_M, MissionPlan
 
 PROTOCOL_VERSION = 1
 
@@ -120,8 +120,17 @@ class SetModeCmd(_Cmd):
     mode: FlightMode
 
 
+class GotoCmd(_Cmd):
+    """이 위치로 가서 멈춘다 (GUIDED). 떠 있을 때만 받는다. 미션은 미션 시작·재개(AUTO)로 이어서 비행"""
+
+    type: Literal["goto"] = "goto"
+    lat: float = Field(ge=-90, le=90)
+    lon: float = Field(ge=-180, le=180)
+    alt: float = Field(gt=0, le=MAX_ALT_M, description="홈(이륙 지점) 기준 고도 m")
+
+
 Command = Annotated[
-    MissionUploadCmd | MissionDownloadCmd | MissionClearCmd | SetModeCmd,
+    MissionUploadCmd | MissionDownloadCmd | MissionClearCmd | SetModeCmd | GotoCmd,
     Field(discriminator="type"),
 ]
 CommandAdapter: TypeAdapter[Command] = TypeAdapter(Command)

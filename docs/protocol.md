@@ -98,6 +98,7 @@ LWT로 등록하는 메시지는 `"online": false`, `"fc_connected": false`.
 | `mission_download` | - | 드론에 저장된 미션을 읽어 ack의 `mission`으로 돌려줌 |
 | `mission_clear` | - | 드론 미션 삭제 |
 | `set_mode` | `mode`: `AUTO` `LOITER` `RTL` `LAND` `GUIDED` `BRAKE` | 비행 모드 변경. `AUTO` = 미션 시작/재개 |
+| `goto` | `lat`, `lon`, `alt` (홈 기준 m, 0 초과 150 이하) | 그 위치로 가서 멈춤. GUIDED로 바뀐다. `AUTO`로 미션을 이어서 비행 |
 
 ```json
 { "v": 1, "ts": 1761552000000, "cmd_id": "6f1c...", "type": "set_mode", "mode": "RTL" }
@@ -106,7 +107,8 @@ LWT로 등록하는 메시지는 `"online": false`, `"fc_connected": false`.
 > **안전 원칙:** 시동(arm)·이륙·시동 끄기(disarm) 명령은 프로토콜에 **일부러 넣지 않았다**. 시동은 조종기로 하고, 대시보드는 미션 업로드와 모드 변경만 한다. `STABILIZE` 같은 수동 모드도 원격으로 바꾸지 않는다.
 
 - 브라우저는 `POST /api/drones/{id}/commands`로 명령을 보낸다 (본문 = 이 메시지, `cmd_id`는 브라우저가 정함). API가 검증해서 MQTT로 발행하고, 마지막 ack(`succeeded`/`failed`)를 HTTP 응답으로 돌려준다. 진행률은 `/ws`로 오는 ack로 따라간다.
-- drone-agent가 거부하는 경우: FC 연결 안 됨, **시동이 걸린 채 AUTO로 비행 중일 때 `mission_upload`·`mission_clear`** (비행 중인 미션이 바뀌면 위험), 드론에 미션이 없는데 `AUTO`.
+- drone-agent가 거부하는 경우: FC 연결 안 됨, **시동이 걸린 채 AUTO로 비행 중일 때 `mission_upload`·`mission_clear`** (비행 중인 미션이 바뀌면 위험), 드론에 미션이 없는데 `AUTO`, 시동이 꺼졌거나 땅에 있을 때(고도 1 m 미만) `goto` (GUIDED는 땅에서 스스로 뜨지 않는다).
+- `goto`는 FC에 `COMMAND_INT(MAV_CMD_DO_REPOSITION, 모드 바꾸기 플래그)`로 보낸다. FC가 받아들이면 `succeeded`이고, 도착은 텔레메트리 위치로 본다 (SITL에서 60 m 이동·도착 확인, 2026-11-05).
 - **일시 정지에는 `BRAKE`를 쓴다.** `LOITER`는 조종기 스로틀을 따르므로 스틱이 내려가 있으면 그대로 하강한다 (SITL에서 24 m → 착륙 확인). `BRAKE`는 스틱과 관계없이 위치·고도를 유지하고, `AUTO`로 멈춘 곳부터 이어서 비행한다.
 
 ### 4.4 `CommandAck` — `drone/{id}/cmd/ack`
@@ -288,3 +290,4 @@ FC가 보내는 문장(MAVLink `STATUSTEXT`) 그대로. 시동 거부 이유(`Pr
 | 1 (초안) | 2026-11-02 | `DroneMission`·`StatusText` 토픽 추가. `MISSION_ITEM_INT` frame을 6 → 3으로 (FC는 둘 다 받음). `Telemetry.mission.total`을 홈 제외 항목 수로 바로잡음 (전에는 1 적게 나옴) |
 | 1 (초안) | 2026-11-02 | 엣지 AI(하이브리드) 구조로: `DetectionFrame`을 드론이 발행, `infer_ms` 추가. `EdgeStatus`·`Snapshot`·`CameraPreview`·`SimFires` 토픽 추가 |
 | 1 (초안) | 2026-11-05 | 서버 재확인 결과 `SnapshotCheck` 토픽 추가 (`drone/{id}/snapshot/check`) |
+| 1 (초안) | 2026-11-05 | `goto` 명령 추가 (이 위치로 보내기). 모르는 명령은 옛 drone-agent가 `failed`로 돌려준다 |

@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from protocol import (
     CommandAdapter,
+    GotoCmd,
     MissionItem,
     MissionPlan,
     MissionUploadCmd,
@@ -46,6 +47,12 @@ def test_command_discriminator():
 
     parsed = CommandAdapter.validate_python({"type": "set_mode", "cmd_id": "x", "mode": "RTL"})
     assert isinstance(parsed, SetModeCmd)
+
+    parsed = CommandAdapter.validate_python({"type": "goto", "cmd_id": "x", "lat": 35.9, "lon": 128.8, "alt": 30})
+    assert isinstance(parsed, GotoCmd) and parsed.alt == 30
+    for alt in (0, 151):  # 땅(0)이나 고도 제한(150 m) 넘는 곳으로는 못 보낸다
+        with pytest.raises(ValidationError):
+            GotoCmd(cmd_id="x", lat=35.9, lon=128.8, alt=alt)
 
 
 def test_arm_command_not_allowed():
