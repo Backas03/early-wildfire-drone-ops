@@ -2,7 +2,7 @@
 // MapContainer 안에 넣는다. 그리는 동안의 설정 칸은 지도 왼쪽 위에 붙는다.
 
 import L from 'leaflet'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CircleMarker, Marker, Polygon, Polyline, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 
@@ -110,6 +110,11 @@ export default function MapTasks(p: Props) {
     }
   }, [map, draw])
 
+  // react-leaflet Popup은 position이 (값이 같아도) 새 배열이면 팝업을 지웠다가 다시 연다.
+  // 텔레메트리(초당 2번)마다 다시 그려지므로 같은 배열을 써야 깜빡이지 않고 입력 중인 칸도 유지된다.
+  const menuPos = useMemo(() => (menu ? ll(menu) : null), [menu])
+  const menuEvents = useMemo(() => ({ remove: () => setMenu(null) }), [])
+
   const closeMenu = () => {
     setMenu(null)
     map.closePopup()
@@ -130,10 +135,10 @@ export default function MapTasks(p: Props) {
 
   return (
     <>
-      {menu && (
+      {menu && menuPos && (
         <Popup
-          position={ll(menu)}
-          eventHandlers={{ remove: () => setMenu(null) }}
+          position={menuPos}
+          eventHandlers={menuEvents}
           minWidth={230}
           // 지도 위 버튼(왼쪽 아래 전체 보기 등, 오른쪽 위 장소 검색)에 가리지 않게 지도를 옮겨 띄운다
           autoPanPaddingTopLeft={[20, 70]}
