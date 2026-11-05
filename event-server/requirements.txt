@@ -1,2 +1,4 @@
 paho-mqtt>=2.1
 pydantic>=2.7
+# 서버 재확인(큰 모델 fire_s)은 엣지 AI와 같은 탐지 코드를 쓴다 (ultralytics, opencv)
+-r ../edge-ai/requirements.txt
