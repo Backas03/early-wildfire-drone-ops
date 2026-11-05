@@ -53,7 +53,7 @@ wsl bash sim/sitl/run_sitl.sh                                   # 터미널 A
 .\.venv\Scripts\python.exe drone-agent/agent.py --mavlink tcp:127.0.0.1:5760   # 터미널 B
 .\.venv\Scripts\python.exe edge-ai/edge.py --source sim                         # 터미널 C (가상 카메라로 탐지)
 
-# 3-b. 또는 가짜 드론 (원을 그리며 텔레메트리만 보냄. 명령은 못 받음)
+# 3-b. 또는 가짜 드론 (SITL 없이 원을 그리며 비행 흉내. 일시 정지·재개·귀환·착륙·미션 올리기를 받는다)
 #      drone-agent와 같은 이름(drone1)을 쓰므로 둘 중 하나만 켠다
 .\.venv\Scripts\python.exe sim/fake_drone.py
 
