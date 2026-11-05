@@ -5,6 +5,7 @@
 
 - 처음에는 시동이 걸린 채 홈 주변을 원으로 돈다 (AUTO, 미션 없음)
 - 일시 정지(BRAKE·LOITER·GUIDED): 그 자리에 멈춘다. 미션 시작·재개(AUTO): 멈춘 곳부터 이어서
+- 이 위치로 보내기(goto): GUIDED로 그 위치까지 가서 멈춘다 (떠 있을 때만)
 - 귀환(RTL): 15 m보다 낮으면 올라간 뒤 홈으로 와서 착륙. 바로 착륙(LAND): 그 자리에 착륙
 - 미션 업로드·삭제: drone-agent처럼 AUTO로 비행 중에는 거부한다
 - 착륙해 있을 때 AUTO를 받으면 조종기로 시동을 건 셈 치고 다시 뜬다 (가짜 드론만 이렇게 한다)
@@ -29,6 +30,7 @@ from protocol import (
     DroneMission,
     DroneStatus,
     FlightInfo,
+    GotoCmd,
     GpsInfo,
     LinkInfo,
     MissionClearCmd,
@@ -44,10 +46,10 @@ from protocol import (
 )
 
 EARTH_R = 6_371_000.0
-HOLD_MODES = {"BRAKE", "LOITER", "GUIDED"}  # 제자리 유지
 CLIMB_MS, DESCEND_MS, LAND_MS = 2.5, 1.5, 1.0  # ArduCopter 기본값과 비슷하게
 RTL_ALT_M = 15.0
 BATTERY_DRAIN_V_S = 0.0016  # 12.6 V → 10.5 V 약 22분
+GOTO_MIN_ALT_M = 1.0
 BUSY_AUTO = "AUTO로 비행 중에는 미션을 {} 수 없어요. 일시 정지(BRAKE)로 멈춘 뒤 다시 하세요."
 
 
@@ -65,6 +67,7 @@ class FakeDrone:
         self.done = False  # 미션 마지막 항목까지 끝냄
         self.hold_left: float | None = None  # 웨이포인트 도착 후 남은 대기 시간
         self.rtl_alt: float | None = None
+        self.target: tuple[float, float, float] | None = None  # GUIDED 목표 (북, 동, 고도)
         self.ground_speed = self.climb = 0.0
         self.heading = 90.0
         self.battery = 12.6
@@ -74,6 +77,14 @@ class FakeDrone:
         """명령을 처리하고 마지막 ack 내용(status, error, mission)을 돌려준다."""
         if isinstance(cmd, SetModeCmd):
             self.set_mode(cmd.mode)
+            return {"status": "succeeded"}
+        if isinstance(cmd, GotoCmd):
+            if not self.armed:
+                return {"status": "failed", "error": "시동이 꺼져 있어요. 떠 있는 드론만 보낼 수 있어요 (시동·이륙은 조종기로)."}
+            if self.alt < GOTO_MIN_ALT_M:
+                return {"status": "failed", "error": "드론이 아직 땅에 있어요. 이륙한 뒤에 보내세요."}
+            self.set_mode("GUIDED")
+            self.target = (*self._to_ne(cmd.lat, cmd.lon), cmd.alt)
             return {"status": "succeeded"}
         if isinstance(cmd, MissionDownloadCmd):
             return {"status": "succeeded", "mission": self.mission}
@@ -92,7 +103,7 @@ class FakeDrone:
             self.armed = True  # 착륙해 있었다면: 가짜 드론만 조종기로 시동을 건 셈 친다
             if self.done:  # 끝난 미션은 처음부터 다시
                 self.seq, self.done = 0, False
-        self.mode, self.hold_left, self.rtl_alt = mode, None, None
+        self.mode, self.hold_left, self.rtl_alt, self.target = mode, None, None, None
 
     # ------------------------------------------------------------------ 비행
     def step(self, dt: float) -> None:
@@ -104,7 +115,9 @@ class FakeDrone:
                 self._rtl(dt)
             elif self.mode == "LAND":
                 self._land(dt)
-            # HOLD_MODES와 그 밖의 모드: 제자리
+            elif self.mode == "GUIDED" and self.target:
+                self._move_to(*self.target, dt, speed=self.cruise)
+            # 그 밖(BRAKE·LOITER, 목표 없는 GUIDED): 제자리
             self.battery = max(self.battery - BATTERY_DRAIN_V_S * dt, 10.5)
         dn, de = self.n - n0, self.e - e0
         self.ground_speed = math.hypot(dn, de) / dt
@@ -122,8 +135,9 @@ class FakeDrone:
         if it.command == "change_speed":
             self.speed = it.speed
             self._next()
-        elif it.command == "takeoff":
-            if self._move_to(self.n, self.e, self._alt_of(it), dt):
+        elif it.command == "takeoff":  # 이미 그보다 높이 떠 있으면 바로 끝 (ArduCopter와 같음)
+            target = self._alt_of(it)
+            if self.alt >= target - 0.3 or self._move_to(self.n, self.e, target, dt):
                 self._next()
         elif it.command in ("waypoint", "loiter_time"):
             if self.hold_left is None:
@@ -173,10 +187,10 @@ class FakeDrone:
             if self.mode == "AUTO" and self.mission is not None:
                 self.done = True
 
-    def _move_to(self, n: float, e: float, alt: float, dt: float) -> bool:
+    def _move_to(self, n: float, e: float, alt: float, dt: float, speed: float | None = None) -> bool:
         """(n, e, alt) 쪽으로 dt만큼 간다. 도착했으면 True."""
         dn, de = n - self.n, e - self.e
-        dist, step = math.hypot(dn, de), self.speed * dt
+        dist, step = math.hypot(dn, de), (speed or self.speed) * dt
         if dist <= step:
             self.n, self.e = n, e
         else:

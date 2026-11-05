@@ -5,7 +5,7 @@ import math
 import pytest
 
 from fake_drone import FakeDrone
-from protocol import MissionClearCmd, MissionDownloadCmd, MissionPlan, MissionUploadCmd, SetModeCmd, Telemetry
+from protocol import GotoCmd, MissionClearCmd, MissionDownloadCmd, MissionPlan, MissionUploadCmd, SetModeCmd, Telemetry
 
 LAT, LON = 35.8964, 128.8495
 DT = 0.5
@@ -71,7 +71,9 @@ def test_flies_uploaded_mission_then_lands_home():
     d.handle(mode("BRAKE"))
     d.handle(MissionUploadCmd(cmd_id="c", mission=PLAN))
     d.handle(mode("AUTO"))
-    seen = set()
+    seen = {d.seq}
+    d.step(DT)
+    assert d.seq == 1  # 35 m로 떠 있어서 이륙(20 m) 항목은 바로 끝 (ArduCopter와 같음)
     for _ in range(400):  # 200초
         d.step(DT)
         seen.add(d.seq)
@@ -124,3 +126,23 @@ def test_land_descends_in_place():
     assert not d.armed and d.alt == 0 and d.latlon() == spot
     tel = d.telemetry("drone1")
     assert tel.velocity.ground_speed == 0 and 0 <= tel.velocity.heading < 360
+
+
+def test_goto_flies_there_and_holds():
+    d = FakeDrone(LAT, LON, radius=90, alt=35)
+    r = d.handle(GotoCmd(cmd_id="c", lat=north_of_home(-50), lon=LON, alt=25))
+    assert r == {"status": "succeeded"} and d.mode == "GUIDED"
+    fly(d, 60)
+    assert (d.n, d.e, d.alt) == pytest.approx((-50, 0, 25), abs=0.01)
+    assert d.ground_speed == 0 and d.armed
+
+    d.handle(mode("BRAKE"))  # 다른 모드로 바꾸면 목표는 잊는다
+    assert d.target is None
+
+
+def test_goto_refused_on_ground():
+    d = FakeDrone(LAT, LON, alt=3)
+    d.handle(mode("LAND"))
+    fly(d, 5)
+    r = d.handle(GotoCmd(cmd_id="c", lat=LAT, lon=LON, alt=20))
+    assert r["status"] == "failed" and "시동" in r["error"]
