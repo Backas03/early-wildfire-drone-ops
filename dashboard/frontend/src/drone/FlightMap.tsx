@@ -9,8 +9,9 @@ import { COMMAND_LABEL, mapPosition } from '../lib/missionCheck.ts'
 import BaseLayers from '../mission/BaseLayers.tsx'
 import { droneIcon, homeIcon, wpIcon, type DroneMarker } from '../mission/mapIcons.ts'
 import PlaceSearch from '../mission/PlaceSearch.tsx'
-import type { MissionPlan, SimFires } from '../protocol.ts'
+import type { FireEvent, MissionPlan, SimFires } from '../protocol.ts'
 import type { TrailPoint } from '../useLiveFeed.ts'
+import { EventMarkers } from './EventsPanel.tsx'
 import MapTasks, { type GotoTarget, type TaskDrone } from './MapTasks.tsx'
 
 interface Props {
@@ -32,6 +33,12 @@ interface Props {
   simFires: SimFires | null
   /** 장소 검색으로 지도를 옮겼을 때 (따라가기를 꺼야 드론 쪽으로 되돌아가지 않는다) */
   onPlaceJump: () => void
+  /** 화재 이벤트 (지도에 그릴 것만) */
+  events: FireEvent[]
+  selectedEventId: string | null
+  onSelectEvent: (e: FireEvent) => void
+  /** n이 바뀌면 이 위치로 지도를 옮긴다 (이벤트 위치 보기) */
+  focus: { at: LatLon; n: number } | null
   /** 우클릭 메뉴(이 위치로 보내기·웨이포인트 찍기·영역 순찰) */
   tasks: {
     drones: TaskDrone[]
@@ -84,6 +91,17 @@ function FlightContent(p: Props) {
     if (pts.length === 1) map.setView(pts[0], Math.max(map.getZoom(), 17))
     else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [48, 48], maxZoom: 18 })
   }, [map, p.fitSignal])
+
+  // 이벤트 위치 보기
+  const focusN = p.focus?.n
+  const focusRef = useRef(p.focus)
+  useEffect(() => {
+    focusRef.current = p.focus
+  })
+  useEffect(() => {
+    const f = focusRef.current
+    if (f) map.setView(ll(f.at), Math.max(map.getZoom(), 18), { animate: true })
+  }, [map, focusN])
 
   // 따라가기: 드론이 화면 가운데 근처를 벗어나면 옮긴다
   const lat = selected?.lat
@@ -179,6 +197,8 @@ function FlightContent(p: Props) {
           />
         ) : null,
       )}
+
+      <EventMarkers events={p.events} selectedId={p.selectedEventId} onSelect={p.onSelectEvent} />
 
       {p.drones.map((d) => (
         <Marker

@@ -368,16 +368,170 @@
 .map.drawing {
   cursor: crosshair;
 }
-.map-toast {
+/* 지도 위쪽 가운데: 새 화재 알림 + 우클릭 메뉴 결과 */
+.map-top {
   position: absolute;
   z-index: 1000;
   top: 10px;
   left: 50%;
   transform: translateX(-50%);
-  max-width: min(520px, calc(100% - 120px));
+  width: min(560px, calc(100% - 120px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   pointer-events: none;
+}
+.map-top .event-alert {
+  pointer-events: auto;
 }
 .map-toast .notice {
   margin: 0;
   box-shadow: 0 1px 6px rgb(0 0 0 / 0.3);
+}
+
+/* ------------------------------------------------------------ 화재 이벤트 */
+.bad-text {
+  color: var(--bad);
+}
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.event {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.event.new {
+  border-left-color: #dc2626;
+  background: var(--bad-bg);
+}
+.event.acknowledged {
+  border-left-color: #ea580c;
+}
+.event.resolved,
+.event.false_alarm {
+  opacity: 0.75;
+}
+.event.sel {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.event-main {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.event-main img,
+.event-noimg {
+  width: 84px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex: none;
+  background: var(--panel);
+}
+.event-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.event-status {
+  font-size: 11.5px;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 0 5px;
+  border: 1px solid currentColor;
+}
+.event-status.new {
+  color: #dc2626;
+}
+.event-status.acknowledged {
+  color: #ea580c;
+}
+.event-status.resolved,
+.event-status.false_alarm {
+  color: var(--muted);
+}
+.event-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.event-actions button {
+  font-size: 12.5px;
+  padding: 2px 10px;
+}
+
+/* 지도 위 이벤트 표시 (배경 지도 위에서 잘 보이도록 고정 색) */
+.event-pin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  color: #fff;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.45);
+  background: #64748b;
+}
+.event-pin.new {
+  background: #dc2626;
+  animation: event-pulse 1.4s ease-out infinite;
+}
+.event-pin.acknowledged {
+  background: #ea580c;
+}
+.event-pin.sel {
+  outline: 3px solid #2563eb;
+}
+@keyframes event-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgb(220 38 38 / 0.7);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgb(220 38 38 / 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .event-pin.new {
+    animation: none;
+  }
+}
+
+/* 새 화재 알림 띠 */
+.event-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  font-size: 13.5px;
+  max-width: 100%;
+}
+.event-alert button {
+  font-size: 12.5px;
+  padding: 2px 10px;
 }

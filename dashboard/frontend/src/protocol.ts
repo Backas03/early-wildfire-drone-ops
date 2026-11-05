@@ -224,6 +224,46 @@ export interface ServerStatus {
   detail: string | null
 }
 
+// ---------------------------------------------------------------------------
+// 화재 이벤트 (이벤트 서버가 탐지 프레임·서버 재확인을 모아 판정)
+// ---------------------------------------------------------------------------
+export type EventStatus = 'new' | 'acknowledged' | 'resolved' | 'false_alarm'
+
+export interface FireEvent {
+  event_id: string
+  /** 처음 찾은 드론 */
+  drone_id: string
+  status: EventStatus
+  classes: Detection['cls'][]
+  max_conf: number
+  first_seen: number
+  last_seen: number
+  /** 화재 추정 위치 (탐지 박스 가운데를 땅에 투영한 점들의 평균) */
+  lat: number
+  lon: number
+  snapshot_url: string | null
+  detection_count: number
+  check_confirmed: number
+  check_rejected: number
+  /** 탐지 위치가 퍼진 정도 (표준편차 m) */
+  radius_m: number | null
+}
+
+/** events: 이벤트 생성·변경 */
+export interface EventMessage {
+  v: number
+  ts: number
+  action: 'created' | 'updated'
+  event: FireEvent
+}
+
+/** events/recent (retained): 최근 이벤트 목록 */
+export interface EventList {
+  v: number
+  ts: number
+  events: FireEvent[]
+}
+
 /** /ws 로 오는 메시지: MQTT 토픽 + 내용 */
 export interface WsMessage {
   topic: string

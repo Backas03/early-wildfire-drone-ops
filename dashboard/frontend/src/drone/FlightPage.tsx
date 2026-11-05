@@ -4,6 +4,7 @@ import './flight.css'
 import { useEffect, useMemo, useState } from 'react'
 
 import { distance, formatDistance, formatDuration, type LatLon } from '../lib/geo.ts'
+import { isOpen, sortEvents } from '../lib/events.ts'
 import { COMMAND_LABEL, DEFAULT_ASSUMPTIONS, missionStats } from '../lib/missionCheck.ts'
 import type { DroneMarker } from '../mission/mapIcons.ts'
 import { usingVworld } from '../mission/tiles.ts'
@@ -12,6 +13,7 @@ import {
   hasPosition,
   type DroneMission,
   type DroneStatus,
+  type FireEvent,
   type FlightMode,
   type MissionPlan,
   type StatusText,
@@ -20,6 +22,7 @@ import {
 import type { LiveState } from '../useLiveFeed.ts'
 import { cameraFootprint } from './camera.ts'
 import EdgePanel from './EdgePanel.tsx'
+import EventsPanel, { EventAlert } from './EventsPanel.tsx'
 import FlightMap from './FlightMap.tsx'
 import type { GotoTarget, TaskDrone } from './MapTasks.tsx'
 import { useDroneCommand, type Notice } from './useDroneCommand.ts'
@@ -81,6 +84,16 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
   const missionCmd = useDroneCommand(live.acks)
   const taskCmd = useDroneCommand(live.acks) // 지도 우클릭 메뉴 (이 위치로 보내기 · 웨이포인트 · 영역 순찰)
   const [gotoTargets, setGotoTargets] = useState<Record<string, GotoTarget>>({})
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
+  const [focus, setFocus] = useState<{ at: LatLon; n: number } | null>(null)
+  const events = useMemo(() => sortEvents(Object.values(live.events)), [live.events])
+  // 지도에는 진행 중인 것만 (끝난 것은 목록에서 골랐을 때만)
+  const mapEvents = events.filter((e) => isOpen(e) || e.event_id === selectedEvent)
+  const showEvent = (e: FireEvent) => {
+    setSelectedEvent(e.event_id)
+    setFocus((f) => ({ at: { lat: e.lat, lon: e.lon }, n: (f?.n ?? 0) + 1 }))
+    setSettings((s) => ({ ...s, follow: false })) // 따라가기가 켜져 있으면 드론 쪽으로 되돌아간다
+  }
 
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 1000)
@@ -190,6 +203,15 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
   return (
     <div className="mission-page flight-page">
       <aside className="side">
+        <EventsPanel
+          events={events}
+          now={now}
+          selectedId={selectedEvent}
+          from={tel && hasPosition(tel) ? { lat: tel.position.lat, lon: tel.position.lon } : null}
+          serverOnline={!!live.servers['event-server']?.online}
+          onSelect={showEvent}
+        />
+
         <section className="panel">
           <h3>드론 ({ids.length})</h3>
           {ids.length === 0 ? (
@@ -315,6 +337,10 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
           footprint={tel && hasPosition(tel) && live.edge[selectedId ?? '']?.online ? cameraFootprint(tel) : null}
           simFires={live.simFires}
           onPlaceJump={() => setSettings((s) => ({ ...s, follow: false }))}
+          events={mapEvents}
+          selectedEventId={selectedEvent}
+          onSelectEvent={showEvent}
+          focus={focus}
           tasks={{
             drones: taskDrones,
             busy: !!taskCmd.running || !!modeCmd.running || !!missionCmd.running,
@@ -323,8 +349,11 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
             onRun: runQuickMission,
           }}
         />
-        <div className="map-toast">
-          <CommandStatus running={taskCmd.running?.label} progress={null} notice={taskCmd.notice} />
+        <div className="map-top">
+          <EventAlert events={events} onShow={showEvent} />
+          <div className="map-toast">
+            <CommandStatus running={taskCmd.running?.label} progress={null} notice={taskCmd.notice} />
+          </div>
         </div>
         {!usingVworld && <p className="tile-note">VWorld 키가 없어서 OpenStreetMap을 쓰는 중 (README 참고)</p>}
       </div>

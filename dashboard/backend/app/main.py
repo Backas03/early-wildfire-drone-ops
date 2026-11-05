@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 
-from . import drones, missions, places
+from . import drones, events, missions, places
 from .media import MEDIA_DIR
 from .mqtt_bridge import get_bridge
 
@@ -36,6 +36,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="산불 탐지 드론 대시보드 API", version="0.3.0", lifespan=lifespan)
 app.include_router(missions.router)
 app.include_router(drones.router)
+app.include_router(events.router)
 app.include_router(places.router)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")

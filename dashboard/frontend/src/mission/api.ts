@@ -1,6 +1,6 @@
-// 대시보드 API 호출: /api/missions (미션 저장), /api/drones (드론 명령)
+// 대시보드 API 호출: /api/missions (미션 저장), /api/drones (드론 명령), /api/events (화재 이벤트 상태)
 
-import type { Command, CommandAck, MissionPlan, MissionSummary } from '../protocol.ts'
+import type { Command, CommandAck, EventStatus, FireEvent, MissionPlan, MissionSummary } from '../protocol.ts'
 
 export class ApiError extends Error {}
 
@@ -69,4 +69,10 @@ export const dronesApi = {
   /** 명령을 보내고 드론의 마지막 ack(succeeded/failed)를 기다린다. 진행률은 /ws의 ack로 따라간다 */
   command: (droneId: string, cmdId: string, cmd: Command) =>
     request<CommandAck>('POST', `/api/drones/${encodeURIComponent(droneId)}/commands`, { cmd_id: cmdId, ...cmd }),
+}
+
+export const eventsApi = {
+  /** 이벤트 서버가 바꾼 이벤트를 돌려준다 (409 이벤트 서버 꺼짐, 504 응답 없음) */
+  setStatus: (eventId: string, status: EventStatus) =>
+    request<FireEvent>('POST', `/api/events/${encodeURIComponent(eventId)}/status`, { status }),
 }

@@ -33,6 +33,7 @@ FORWARD = [
     topics.ALL_SNAPSHOT_CHECK,
     topics.SIM_FIRES,
     topics.EVENTS,
+    topics.EVENTS_RECENT,
     topics.ALL_SERVER_STATUS,
 ]
 QUEUE_MAX = 200  # 느린 브라우저 때문에 메모리가 쌓이지 않게
@@ -56,6 +57,7 @@ class MqttBridge:
         self._snapshots: defaultdict[str, deque] = defaultdict(lambda: deque(maxlen=SNAPSHOTS_KEPT))
         self._early_checks: OrderedDict[str, dict] = OrderedDict()
         self._ack_waiters: dict[str, asyncio.Queue] = {}
+        self._event_waiters: dict[str, asyncio.Queue] = {}
         self._client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id="dashboard-api")
         offline = ServerStatus(name="dashboard-api", online=False)
         self._client.will_set(topics.server_status("dashboard-api"), offline.model_dump_json(), qos=1, retain=True)
@@ -106,6 +108,19 @@ class MqttBridge:
     def unwatch_acks(self, cmd_id: str) -> None:
         self._ack_waiters.pop(cmd_id, None)
 
+    def server_online(self, name: str) -> bool:
+        status = self._retained.get(topics.server_status(name))
+        return isinstance(status, dict) and bool(status.get("online"))
+
+    # --- 이벤트 변경 기다리기 (이벤트 루프에서만 호출) --------------------
+    def watch_event(self, event_id: str) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue()
+        self._event_waiters[event_id] = q
+        return q
+
+    def unwatch_event(self, event_id: str) -> None:
+        self._event_waiters.pop(event_id, None)
+
     # --- paho 콜백 (paho 스레드에서 실행됨) -----------------------------
     def _on_connect(self, client, _userdata, _flags, reason_code, _props):
         self.connected = not reason_code.is_failure
@@ -136,7 +151,8 @@ class MqttBridge:
             except ValidationError as e:
                 log.warning("잘못된 재확인 결과 무시: %s", str(e)[:200])
                 return
-        if msg.retain or msg.topic.endswith(LATEST) or msg.topic == topics.SIM_FIRES:
+        # 이미 구독 중일 때 받은 retained 메시지는 retain 표시 없이 오므로, 마지막 값을 기억할 토픽은 이름으로도 고른다
+        if msg.retain or msg.topic.endswith(LATEST) or msg.topic in (topics.SIM_FIRES, topics.EVENTS_RECENT):
             self._retained[msg.topic] = data
         if self._loop:
             self._loop.call_soon_threadsafe(self._fanout, msg.topic, data)
@@ -153,6 +169,10 @@ class MqttBridge:
             waiter = self._ack_waiters.get(data.get("cmd_id"))
             if waiter:
                 waiter.put_nowait(data)
+        elif topic == topics.EVENTS and isinstance(data, dict) and isinstance(data.get("event"), dict):
+            waiter = self._event_waiters.get(data["event"].get("event_id"))
+            if waiter:
+                waiter.put_nowait(data["event"])
         for q in list(self._queues):
             if q.full():
                 q.get_nowait()  # 가장 오래된 것 버림

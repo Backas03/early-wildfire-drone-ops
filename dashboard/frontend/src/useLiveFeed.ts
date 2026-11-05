@@ -7,6 +7,9 @@ import {
   type DroneMission,
   type DroneStatus,
   type EdgeStatus,
+  type EventList,
+  type EventMessage,
+  type FireEvent,
   type ServerStatus,
   type SimFires,
   type SnapshotCheck,
@@ -40,6 +43,8 @@ export interface LiveState {
   earlyChecks: Record<string, SnapshotCheck>
   /** 시뮬레이션 가상 화재 정답 위치 */
   simFires: SimFires | null
+  /** 화재 이벤트 (event_id별) */
+  events: Record<string, FireEvent>
 }
 
 const initial: LiveState = {
@@ -57,6 +62,7 @@ const initial: LiveState = {
   snapshots: {},
   earlyChecks: {},
   simFires: null,
+  events: {},
 }
 
 const TEXTS_KEPT = 50
@@ -86,6 +92,14 @@ function reduce(s: LiveState, topic: string, data: unknown): LiveState {
     return { ...s, detections: { ...s.detections, [id]: data as DetectionFrame } }
   }
   if (root === 'sim' && id === 'fires') return { ...s, simFires: data as SimFires }
+  if (topic === 'events/recent') {
+    // 이벤트 서버가 보낸 최근 목록이 기준. 목록에서 밀려난 오래된 것은 지운다
+    return { ...s, events: Object.fromEntries((data as EventList).events.map((e) => [e.event_id, e])) }
+  }
+  if (topic === 'events') {
+    const e = (data as EventMessage).event
+    return { ...s, events: { ...s.events, [e.event_id]: e } }
+  }
   if (root !== 'drone' || !id) return s
   switch (sub ? `${kind}/${sub}` : kind) {
     case 'telemetry': {
