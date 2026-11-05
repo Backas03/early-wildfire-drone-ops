@@ -265,6 +265,7 @@ export default function FlightPage({ live, clearTrail, onOpenInEditor }: Props) 
           onSelectDrone={select}
           footprint={tel && hasPosition(tel) && live.edge[selectedId ?? '']?.online ? cameraFootprint(tel) : null}
           simFires={live.simFires}
+          onPlaceJump={() => setSettings((s) => ({ ...s, follow: false }))}
         />
         {!usingVworld && <p className="tile-note">VWorld 키가 없어서 OpenStreetMap을 쓰는 중 (README 참고)</p>}
       </div>

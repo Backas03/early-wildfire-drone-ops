@@ -43,6 +43,20 @@ export function makeProjection(origin: LatLon) {
   }
 }
 
+/**
+ * "35.8964, 128.8495" 같은 좌표 글자 → 위치 (쉼표나 공백으로 구분).
+ * 경도·위도 순서("128.8495, 35.8964")도 받는다. 좌표가 아니면 null.
+ */
+export function parseLatLon(text: string): LatLon | null {
+  const m = text.trim().match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/)
+  if (!m) return null
+  let a = Number(m[1])
+  let b = Number(m[2])
+  if (Math.abs(a) > 90 && Math.abs(b) <= 90) [a, b] = [b, a]
+  if (Math.abs(a) > 90 || Math.abs(b) > 180) return null
+  return { lat: a, lon: b }
+}
+
 export function formatDistance(m: number): string {
   return m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${Math.round(m)} m`
 }

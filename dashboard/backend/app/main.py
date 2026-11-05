@@ -3,6 +3,7 @@
 - GET  /api/health    : 서버·MQTT 연결 상태
 - /api/missions/...   : 미션 저장·불러오기, .waypoints 입출력 (missions.py)
 - POST /api/drones/{id}/commands : 드론에 명령 (미션 업로드, 모드 변경 등. drones.py)
+- GET  /api/places/search?q=... : 지도에서 장소 이름으로 이동 (OpenStreetMap 검색. places.py)
 - GET  /media/...     : 엣지 AI가 보낸 탐지 사진 (media.py가 MQTT에서 받아 저장)
 - WS   /ws            : MQTT 메시지(텔레메트리, 상태, ack, 드론 미션, FC 문장, 엣지 AI 탐지·사진, 이벤트)를 브라우저로 전달
 
@@ -17,7 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket
 from fastapi.staticfiles import StaticFiles
 
-from . import drones, missions
+from . import drones, missions, places
 from .media import MEDIA_DIR
 from .mqtt_bridge import get_bridge
 
@@ -35,6 +36,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="산불 탐지 드론 대시보드 API", version="0.3.0", lifespan=lifespan)
 app.include_router(missions.router)
 app.include_router(drones.router)
+app.include_router(places.router)
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/media", StaticFiles(directory=MEDIA_DIR), name="media")
 

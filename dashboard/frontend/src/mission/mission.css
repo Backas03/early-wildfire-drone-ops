@@ -404,6 +404,61 @@ button.link strong {
   white-space: nowrap;
 }
 
+/* 장소 검색 (지도 오른쪽 위, 배경 지도 선택 아래) */
+.place-search {
+  width: 270px;
+  max-width: calc(100vw - 40px);
+  font: 13.5px/1.4 system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif;
+}
+.place-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+}
+.place-search-form input {
+  flex: 1;
+  color: inherit;
+}
+.place-msg {
+  flex-basis: 100%;
+  margin: 2px 2px 0;
+  font-size: 12px;
+  color: var(--bad);
+}
+.place-results {
+  flex-basis: 100%;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.place-results button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 4px 6px;
+}
+.place-results strong {
+  display: block;
+  font-weight: 600;
+}
+.place-results span {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* 모드별 커서 */
 .leaflet-container[data-mode='add'],
 .leaflet-container[data-mode='home'],

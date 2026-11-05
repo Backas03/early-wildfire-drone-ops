@@ -8,6 +8,7 @@ import type { LatLon } from '../lib/geo.ts'
 import { COMMAND_LABEL, mapPosition } from '../lib/missionCheck.ts'
 import BaseLayers from '../mission/BaseLayers.tsx'
 import { droneIcon, homeIcon, wpIcon, type DroneMarker } from '../mission/mapIcons.ts'
+import PlaceSearch from '../mission/PlaceSearch.tsx'
 import type { MissionPlan, SimFires } from '../protocol.ts'
 import type { TrailPoint } from '../useLiveFeed.ts'
 
@@ -28,6 +29,8 @@ interface Props {
   footprint: LatLon[] | null
   /** 시뮬레이션 가상 화재 정답 위치 */
   simFires: SimFires | null
+  /** 장소 검색으로 지도를 옮겼을 때 (따라가기를 꺼야 드론 쪽으로 되돌아가지 않는다) */
+  onPlaceJump: () => void
 }
 
 const PATH_COLOR = '#ff8c00'
@@ -43,6 +46,7 @@ export default function FlightMap(props: Props) {
     <MapContainer center={ll(props.initialCenter)} zoom={17} maxZoom={21} zoomControl={false} className="map">
       <ZoomControl position="bottomright" />
       <BaseLayers />
+      <PlaceSearch onJump={props.onPlaceJump} />
       <FlightContent {...props} />
     </MapContainer>
   )

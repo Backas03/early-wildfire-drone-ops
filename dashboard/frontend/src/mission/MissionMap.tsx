@@ -9,6 +9,7 @@ import { itemErrors, mapPosition } from '../lib/missionCheck.ts'
 import BaseLayers from './BaseLayers.tsx'
 import type { Draft } from './draft.ts'
 import { cachedIcon, droneIcon, homeIcon, wpIcon, type DroneMarker } from './mapIcons.ts'
+import PlaceSearch from './PlaceSearch.tsx'
 
 export type MapMode = 'select' | 'add' | 'home' | 'area'
 export type { DroneMarker }
@@ -60,6 +61,7 @@ export default function MissionMap(props: Props) {
     >
       <ZoomControl position="bottomright" />
       <BaseLayers />
+      <PlaceSearch />
       <MapContent {...props} />
     </MapContainer>
   )
