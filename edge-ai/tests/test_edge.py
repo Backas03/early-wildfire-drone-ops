@@ -26,12 +26,14 @@ def test_to_detections_maps_by_name_and_cleans_boxes():
 
 def test_annotate_draws_boxes_on_a_copy():
     frame = np.zeros((360, 640, 3), np.uint8)
-    fire = Detection(cls="fire", conf=0.83, bbox=(0.25, 0.5, 0.75, 0.9))
-    out = annotate(frame, [fire], "fire_n | sim")
+    fire = Detection(cls="fire", conf=0.83, bbox=(0.25, 0.4, 0.75, 0.8))
+    smoke = Detection(cls="smoke", conf=0.6, bbox=(0.0, 0.0, 1.0, 1.0))  # 화면 전체 (이름표는 맨 위)
+    out = annotate(frame, [fire, smoke], "fire_n | sim")
     assert out.shape == frame.shape and not frame.any()  # 원본은 그대로
-    assert tuple(out[270, 160]) == BOX_COLORS["fire"]  # 상자 왼쪽 변 (x=0.25*640, y는 상자 중간)
-    assert out[5:20, 5:60].any()  # 위쪽 상태 줄
-    assert not out[340, 600].any()  # 상자 밖은 그대로
+    assert tuple(out[216, 160]) == BOX_COLORS["fire"]  # 불 상자 왼쪽 변 (x=0.25*640, y는 상자 중간)
+    assert tuple(out[3, 3]) == BOX_COLORS["smoke"]  # 맨 위 이름표가 상태 줄에 가리지 않음
+    assert out[345:355, 8:40].any() and not out[345:355, 8:40].all()  # 아래쪽 상태 줄 (글자)
+    assert not out[100, 400].any()  # 상자 밖은 그대로
 
 
 def test_model_name():

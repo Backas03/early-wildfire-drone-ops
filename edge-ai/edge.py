@@ -65,7 +65,8 @@ FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
 def annotate(frame: np.ndarray, dets: list[Detection], info: str) -> np.ndarray:
-    """탐지 상자·신뢰도와 위쪽 상태 한 줄을 그린 사본. cv2 글꼴은 한글을 못 그려서 영어로 쓴다."""
+    """탐지 상자·신뢰도와 아래쪽 상태 한 줄을 그린 사본. cv2 글꼴은 한글을 못 그려서 영어로 쓴다.
+    상태 줄은 아래에 둔다 (위에 두면 화면 맨 위에서 시작하는 상자의 이름표를 가린다)."""
     img = frame.copy()
     h, w = img.shape[:2]
     scale = max(0.4, w / 1600)
@@ -80,8 +81,8 @@ def annotate(frame: np.ndarray, dets: list[Detection], info: str) -> np.ndarray:
         cv2.rectangle(img, (x1, ty - th - base - 2), (x1 + tw + 4, ty), color, -1)
         cv2.putText(img, label, (x1 + 2, ty - base), FONT, scale, (255, 255, 255), thick, cv2.LINE_AA)
     (tw, th), base = cv2.getTextSize(info, FONT, scale, thick)
-    cv2.rectangle(img, (0, 0), (tw + 12, th + base + 12), (0, 0, 0), -1)
-    cv2.putText(img, info, (6, th + 6), FONT, scale, (255, 255, 255), thick, cv2.LINE_AA)
+    cv2.rectangle(img, (0, h - th - base - 12), (tw + 12, h), (0, 0, 0), -1)
+    cv2.putText(img, info, (6, h - base - 6), FONT, scale, (255, 255, 255), thick, cv2.LINE_AA)
     return img
 
 
