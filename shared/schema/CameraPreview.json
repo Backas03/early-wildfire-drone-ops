@@ -1,0 +1,98 @@
+{
+  "$defs": {
+    "Detection": {
+      "properties": {
+        "cls": {
+          "enum": [
+            "fire",
+            "smoke"
+          ],
+          "title": "Cls",
+          "type": "string"
+        },
+        "conf": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "bbox": {
+          "description": "x1,y1,x2,y2 (0~1로 정규화)",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cls",
+        "conf",
+        "bbox"
+      ],
+      "title": "Detection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "frame_ts": {
+      "title": "Frame Ts",
+      "type": "integer"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "detections": {
+      "items": {
+        "$ref": "#/$defs/Detection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "jpeg_b64": {
+      "title": "Jpeg B64",
+      "type": "string"
+    }
+  },
+  "required": [
+    "drone_id",
+    "frame_ts",
+    "width",
+    "height",
+    "detections",
+    "jpeg_b64"
+  ],
+  "title": "CameraPreview",
+  "type": "object"
+}

@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "FireEvent": {
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "drone_id": {
+          "title": "Drone Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "new",
+            "acknowledged",
+            "resolved",
+            "false_alarm"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "classes": {
+          "items": {
+            "enum": [
+              "fire",
+              "smoke"
+            ],
+            "type": "string"
+          },
+          "title": "Classes",
+          "type": "array"
+        },
+        "max_conf": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Max Conf",
+          "type": "number"
+        },
+        "first_seen": {
+          "title": "First Seen",
+          "type": "integer"
+        },
+        "last_seen": {
+          "title": "Last Seen",
+          "type": "integer"
+        },
+        "lat": {
+          "description": "탐지 당시 드론 위치 (화재 위치 추정값)",
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "snapshot_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Url"
+        },
+        "detection_count": {
+          "default": 0,
+          "title": "Detection Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "event_id",
+        "drone_id",
+        "status",
+        "classes",
+        "max_conf",
+        "first_seen",
+        "last_seen",
+        "lat",
+        "lon"
+      ],
+      "title": "FireEvent",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "action": {
+      "enum": [
+        "created",
+        "updated"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "event": {
+      "$ref": "#/$defs/FireEvent"
+    }
+  },
+  "required": [
+    "action",
+    "event"
+  ],
+  "title": "EventMessage",
+  "type": "object"
+}

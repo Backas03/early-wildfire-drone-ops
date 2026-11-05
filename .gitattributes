@@ -1,0 +1,4 @@
+* text=auto
+# 쉘 스크립트는 WSL/라즈베리파이에서 실행되므로 항상 LF
+*.sh text eol=lf
+*.hwp binary

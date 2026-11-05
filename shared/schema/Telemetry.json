@@ -1,0 +1,241 @@
+{
+  "$defs": {
+    "BatteryInfo": {
+      "properties": {
+        "voltage": {
+          "title": "Voltage",
+          "type": "number"
+        },
+        "current": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current"
+        },
+        "remaining": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "% (FC 추정값)",
+          "title": "Remaining"
+        }
+      },
+      "required": [
+        "voltage"
+      ],
+      "title": "BatteryInfo",
+      "type": "object"
+    },
+    "FlightInfo": {
+      "properties": {
+        "mode": {
+          "description": "ArduCopter 모드 이름 (STABILIZE, LOITER, AUTO, RTL ...)",
+          "title": "Mode",
+          "type": "string"
+        },
+        "armed": {
+          "title": "Armed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "armed"
+      ],
+      "title": "FlightInfo",
+      "type": "object"
+    },
+    "GpsInfo": {
+      "properties": {
+        "fix_type": {
+          "description": "0-1: 없음, 2: 2D, 3: 3D, 4+: DGPS/RTK",
+          "title": "Fix Type",
+          "type": "integer"
+        },
+        "satellites": {
+          "title": "Satellites",
+          "type": "integer"
+        },
+        "hdop": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Hdop"
+        }
+      },
+      "required": [
+        "fix_type",
+        "satellites"
+      ],
+      "title": "GpsInfo",
+      "type": "object"
+    },
+    "LinkInfo": {
+      "properties": {
+        "lte_rssi": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "dBm, LTE 모듈에서 읽음",
+          "title": "Lte Rssi"
+        }
+      },
+      "title": "LinkInfo",
+      "type": "object"
+    },
+    "MissionProgress": {
+      "properties": {
+        "current_seq": {
+          "description": "MissionPlan 기준 seq (MAVLink seq - 1)",
+          "title": "Current Seq",
+          "type": "integer"
+        },
+        "total": {
+          "title": "Total",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "current_seq",
+        "total"
+      ],
+      "title": "MissionProgress",
+      "type": "object"
+    },
+    "Position": {
+      "properties": {
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "alt_rel": {
+          "description": "홈(이륙 지점) 기준 고도 m",
+          "title": "Alt Rel",
+          "type": "number"
+        },
+        "alt_msl": {
+          "description": "해발 고도 m",
+          "title": "Alt Msl",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon",
+        "alt_rel",
+        "alt_msl"
+      ],
+      "title": "Position",
+      "type": "object"
+    },
+    "Velocity": {
+      "properties": {
+        "ground_speed": {
+          "title": "Ground Speed",
+          "type": "number"
+        },
+        "climb": {
+          "title": "Climb",
+          "type": "number"
+        },
+        "heading": {
+          "exclusiveMaximum": 360,
+          "minimum": 0,
+          "title": "Heading",
+          "type": "number"
+        }
+      },
+      "required": [
+        "ground_speed",
+        "climb",
+        "heading"
+      ],
+      "title": "Velocity",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "position": {
+      "$ref": "#/$defs/Position"
+    },
+    "velocity": {
+      "$ref": "#/$defs/Velocity"
+    },
+    "battery": {
+      "$ref": "#/$defs/BatteryInfo"
+    },
+    "gps": {
+      "$ref": "#/$defs/GpsInfo"
+    },
+    "flight": {
+      "$ref": "#/$defs/FlightInfo"
+    },
+    "mission": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MissionProgress"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "link": {
+      "$ref": "#/$defs/LinkInfo"
+    }
+  },
+  "required": [
+    "drone_id",
+    "position",
+    "velocity",
+    "battery",
+    "gps",
+    "flight"
+  ],
+  "title": "Telemetry",
+  "type": "object"
+}

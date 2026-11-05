@@ -1,0 +1,35 @@
+{
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "severity": {
+      "description": "0 비상 · 2 위험 · 3 오류 · 4 경고 · 5 알림 · 6 정보 · 7 디버그",
+      "maximum": 7,
+      "minimum": 0,
+      "title": "Severity",
+      "type": "integer"
+    },
+    "text": {
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "drone_id",
+    "severity",
+    "text"
+  ],
+  "title": "StatusText",
+  "type": "object"
+}

@@ -1,0 +1,119 @@
+{
+  "$defs": {
+    "Detection": {
+      "properties": {
+        "cls": {
+          "enum": [
+            "fire",
+            "smoke"
+          ],
+          "title": "Cls",
+          "type": "string"
+        },
+        "conf": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "bbox": {
+          "description": "x1,y1,x2,y2 (0~1로 정규화)",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cls",
+        "conf",
+        "bbox"
+      ],
+      "title": "Detection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "frame_ts": {
+      "description": "프레임 촬영 시각 ms. 드론 위치와 맞출 때 사용",
+      "title": "Frame Ts",
+      "type": "integer"
+    },
+    "stream": {
+      "description": "영상 이름 (MediaMTX 경로). 예: drone1",
+      "title": "Stream",
+      "type": "string"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "model": {
+      "description": "모델 이름. 예: fire_n",
+      "title": "Model",
+      "type": "string"
+    },
+    "detections": {
+      "items": {
+        "$ref": "#/$defs/Detection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "infer_ms": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "이 프레임 추론에 걸린 시간",
+      "title": "Infer Ms"
+    }
+  },
+  "required": [
+    "drone_id",
+    "frame_ts",
+    "stream",
+    "width",
+    "height",
+    "model",
+    "detections"
+  ],
+  "title": "DetectionFrame",
+  "type": "object"
+}

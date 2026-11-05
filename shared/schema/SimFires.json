@@ -1,0 +1,67 @@
+{
+  "$defs": {
+    "SimFire": {
+      "properties": {
+        "fire_id": {
+          "title": "Fire Id",
+          "type": "string"
+        },
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "size_m": {
+          "description": "불이 난 영역 지름",
+          "exclusiveMinimum": 0,
+          "title": "Size M",
+          "type": "number"
+        },
+        "smoke": {
+          "default": true,
+          "title": "Smoke",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "fire_id",
+        "lat",
+        "lon",
+        "size_m"
+      ],
+      "title": "SimFire",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "scenario": {
+      "title": "Scenario",
+      "type": "string"
+    },
+    "fires": {
+      "items": {
+        "$ref": "#/$defs/SimFire"
+      },
+      "title": "Fires",
+      "type": "array"
+    }
+  },
+  "required": [
+    "scenario",
+    "fires"
+  ],
+  "title": "SimFires",
+  "type": "object"
+}

@@ -1,0 +1,254 @@
+{
+  "$defs": {
+    "MissionItem": {
+      "properties": {
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "command": {
+          "enum": [
+            "takeoff",
+            "waypoint",
+            "loiter_time",
+            "change_speed",
+            "rtl",
+            "land"
+          ],
+          "title": "Command",
+          "type": "string"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lat"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lon"
+        },
+        "alt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "m, frame 기준",
+          "title": "Alt"
+        },
+        "frame": {
+          "default": "relative",
+          "enum": [
+            "relative",
+            "absolute",
+            "terrain"
+          ],
+          "title": "Frame",
+          "type": "string"
+        },
+        "hold_s": {
+          "default": 0,
+          "description": "waypoint 대기 / loiter_time 선회 시간",
+          "minimum": 0,
+          "title": "Hold S",
+          "type": "number"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "change_speed 전용, m/s",
+          "title": "Speed"
+        }
+      },
+      "required": [
+        "seq",
+        "command"
+      ],
+      "title": "MissionItem",
+      "type": "object"
+    },
+    "MissionPlan": {
+      "properties": {
+        "mission_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mission Id"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "home": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanHome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MissionItem"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "items"
+      ],
+      "title": "MissionPlan",
+      "type": "object"
+    },
+    "PlanHome": {
+      "description": "계획할 때 정한 이륙 지점. 거리·시간 추정과 .waypoints 파일 0번 줄에 쓴다.\n\n실제 홈은 기체가 시동을 걸 때 GPS 위치로 정하므로, 드론에 올릴 때 이 값은 참고용이다.",
+      "properties": {
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "alt_msl": {
+          "default": 0,
+          "description": "해발 고도 m (모르면 0)",
+          "title": "Alt Msl",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "PlanHome",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "cmd_id": {
+      "title": "Cmd Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "accepted",
+        "in_progress",
+        "succeeded",
+        "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "progress": {
+      "anyOf": [
+        {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Progress"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error"
+    },
+    "mission": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MissionPlan"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "mission_download 결과"
+    }
+  },
+  "required": [
+    "drone_id",
+    "cmd_id",
+    "status"
+  ],
+  "title": "CommandAck",
+  "type": "object"
+}

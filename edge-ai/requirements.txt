@@ -1,0 +1,7 @@
+# 엣지 AI (라즈베리파이 5 / 개발 PC)
+ultralytics>=8.3      # YOLOv8. 옛 버전으로 학습한 모델(fire_n.pt 등)도 읽는다
+paho-mqtt>=2.1
+pydantic>=2.7
+# opencv는 ultralytics가 같이 설치한다
+# 라즈베리파이 카메라: pip 말고 apt로 → sudo apt install python3-picamera2
+# 라즈베리파이 속도: yolo export model=models/fire_n.pt format=ncnn  → models/fire_n_ncnn_model

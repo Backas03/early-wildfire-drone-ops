@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "Position": {
+      "properties": {
+        "lat": {
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "title": "Lon",
+          "type": "number"
+        },
+        "alt_rel": {
+          "description": "홈(이륙 지점) 기준 고도 m",
+          "title": "Alt Rel",
+          "type": "number"
+        },
+        "alt_msl": {
+          "description": "해발 고도 m",
+          "title": "Alt Msl",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon",
+        "alt_rel",
+        "alt_msl"
+      ],
+      "title": "Position",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "online": {
+      "title": "Online",
+      "type": "boolean"
+    },
+    "fc_connected": {
+      "default": false,
+      "title": "Fc Connected",
+      "type": "boolean"
+    },
+    "home": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Position"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "agent_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Version"
+    }
+  },
+  "required": [
+    "drone_id",
+    "online"
+  ],
+  "title": "DroneStatus",
+  "type": "object"
+}

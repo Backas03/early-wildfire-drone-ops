@@ -1,0 +1,36 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# 데이터·로그 (커밋하지 않음)
+*.db
+*.sqlite
+logs/
+media/
+
+# SITL 다운로드 파일과 실행 중 생성 파일
+sim/sitl/bin/
+# drone-agent가 기억하는 마지막 업로드 미션
+drone-agent/state/
+# AI 모델 가중치 (외부 저장소에서 받음 → models/README.md), 가상 카메라 위성 타일 캐시
+models/*.pt
+models/*_ncnn_model/
+sim/cache/
+
+# 비밀 정보 (계획서에는 팀원 연락처·학번이 있어서 커밋하지 않음)
+papers/
+.env
+infra/mosquitto/passwd
+
+# 에디터·OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,130 @@
+{
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "online": {
+      "title": "Online",
+      "type": "boolean"
+    },
+    "model": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Model"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "picamera | sim | video | cam",
+      "title": "Source"
+    },
+    "imgsz": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "모델 입력 크기(px)",
+      "title": "Imgsz"
+    },
+    "target_hz": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "목표 추론 횟수/초",
+      "title": "Target Hz"
+    },
+    "fps": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "실제 추론 횟수/초 (최근 5초)",
+      "title": "Fps"
+    },
+    "infer_ms": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "평균 추론 시간",
+      "title": "Infer Ms"
+    },
+    "cpu_temp_c": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "라즈베리파이 CPU 온도",
+      "title": "Cpu Temp C"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "오류 등 사람이 읽는 문장",
+      "title": "Detail"
+    }
+  },
+  "required": [
+    "drone_id",
+    "online"
+  ],
+  "title": "EdgeStatus",
+  "type": "object"
+}

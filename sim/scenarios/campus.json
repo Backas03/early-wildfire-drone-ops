@@ -1,0 +1,9 @@
+{
+  "name": "대구대 캠퍼스 남쪽 하천 풀밭",
+  "wind_from_deg": 225,
+  "fires": [
+    { "fire_id": "A", "lat": 35.89632, "lon": 128.85040, "size_m": 6, "smoke": true },
+    { "fire_id": "B", "lat": 35.89625, "lon": 128.85085, "size_m": 3, "smoke": true },
+    { "fire_id": "C", "lat": 35.89745, "lon": 128.85070, "size_m": 4, "smoke": true }
+  ]
+}

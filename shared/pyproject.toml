@@ -1,0 +1,13 @@
+[project]
+name = "fire-protocol"
+version = "0.1.0"
+description = "산불 탐지 드론 시스템 서버 간 통신 프로토콜 (MQTT 메시지 스키마)"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.7"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["protocol"]

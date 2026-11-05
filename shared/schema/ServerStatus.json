@@ -1,0 +1,57 @@
+{
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "name": {
+      "enum": [
+        "dashboard-api",
+        "event-server",
+        "inference",
+        "streaming"
+      ],
+      "title": "Name",
+      "type": "string"
+    },
+    "online": {
+      "title": "Online",
+      "type": "boolean"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    },
+    "detail": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Detail"
+    }
+  },
+  "required": [
+    "name",
+    "online"
+  ],
+  "title": "ServerStatus",
+  "type": "object"
+}

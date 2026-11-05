@@ -1,0 +1,340 @@
+{
+  "$defs": {
+    "MissionClearCmd": {
+      "properties": {
+        "v": {
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "integer"
+        },
+        "cmd_id": {
+          "description": "UUID. ack와 짝을 맞출 때 사용",
+          "minLength": 1,
+          "title": "Cmd Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "mission_clear",
+          "default": "mission_clear",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd_id"
+      ],
+      "title": "MissionClearCmd",
+      "type": "object"
+    },
+    "MissionDownloadCmd": {
+      "properties": {
+        "v": {
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "integer"
+        },
+        "cmd_id": {
+          "description": "UUID. ack와 짝을 맞출 때 사용",
+          "minLength": 1,
+          "title": "Cmd Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "mission_download",
+          "default": "mission_download",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd_id"
+      ],
+      "title": "MissionDownloadCmd",
+      "type": "object"
+    },
+    "MissionItem": {
+      "properties": {
+        "seq": {
+          "minimum": 0,
+          "title": "Seq",
+          "type": "integer"
+        },
+        "command": {
+          "enum": [
+            "takeoff",
+            "waypoint",
+            "loiter_time",
+            "change_speed",
+            "rtl",
+            "land"
+          ],
+          "title": "Command",
+          "type": "string"
+        },
+        "lat": {
+          "anyOf": [
+            {
+              "maximum": 90,
+              "minimum": -90,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lat"
+        },
+        "lon": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": -180,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lon"
+        },
+        "alt": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "m, frame 기준",
+          "title": "Alt"
+        },
+        "frame": {
+          "default": "relative",
+          "enum": [
+            "relative",
+            "absolute",
+            "terrain"
+          ],
+          "title": "Frame",
+          "type": "string"
+        },
+        "hold_s": {
+          "default": 0,
+          "description": "waypoint 대기 / loiter_time 선회 시간",
+          "minimum": 0,
+          "title": "Hold S",
+          "type": "number"
+        },
+        "speed": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "change_speed 전용, m/s",
+          "title": "Speed"
+        }
+      },
+      "required": [
+        "seq",
+        "command"
+      ],
+      "title": "MissionItem",
+      "type": "object"
+    },
+    "MissionPlan": {
+      "properties": {
+        "mission_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mission Id"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "home": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanHome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MissionItem"
+          },
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "items"
+      ],
+      "title": "MissionPlan",
+      "type": "object"
+    },
+    "MissionUploadCmd": {
+      "properties": {
+        "v": {
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "integer"
+        },
+        "cmd_id": {
+          "description": "UUID. ack와 짝을 맞출 때 사용",
+          "minLength": 1,
+          "title": "Cmd Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "mission_upload",
+          "default": "mission_upload",
+          "title": "Type",
+          "type": "string"
+        },
+        "mission": {
+          "$ref": "#/$defs/MissionPlan"
+        }
+      },
+      "required": [
+        "cmd_id",
+        "mission"
+      ],
+      "title": "MissionUploadCmd",
+      "type": "object"
+    },
+    "PlanHome": {
+      "description": "계획할 때 정한 이륙 지점. 거리·시간 추정과 .waypoints 파일 0번 줄에 쓴다.\n\n실제 홈은 기체가 시동을 걸 때 GPS 위치로 정하므로, 드론에 올릴 때 이 값은 참고용이다.",
+      "properties": {
+        "lat": {
+          "maximum": 90,
+          "minimum": -90,
+          "title": "Lat",
+          "type": "number"
+        },
+        "lon": {
+          "maximum": 180,
+          "minimum": -180,
+          "title": "Lon",
+          "type": "number"
+        },
+        "alt_msl": {
+          "default": 0,
+          "description": "해발 고도 m (모르면 0)",
+          "title": "Alt Msl",
+          "type": "number"
+        }
+      },
+      "required": [
+        "lat",
+        "lon"
+      ],
+      "title": "PlanHome",
+      "type": "object"
+    },
+    "SetModeCmd": {
+      "properties": {
+        "v": {
+          "default": 1,
+          "title": "V",
+          "type": "integer"
+        },
+        "ts": {
+          "title": "Ts",
+          "type": "integer"
+        },
+        "cmd_id": {
+          "description": "UUID. ack와 짝을 맞출 때 사용",
+          "minLength": 1,
+          "title": "Cmd Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "set_mode",
+          "default": "set_mode",
+          "title": "Type",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "AUTO",
+            "LOITER",
+            "RTL",
+            "LAND",
+            "GUIDED",
+            "BRAKE"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cmd_id",
+        "mode"
+      ],
+      "title": "SetModeCmd",
+      "type": "object"
+    }
+  },
+  "discriminator": {
+    "mapping": {
+      "mission_clear": "#/$defs/MissionClearCmd",
+      "mission_download": "#/$defs/MissionDownloadCmd",
+      "mission_upload": "#/$defs/MissionUploadCmd",
+      "set_mode": "#/$defs/SetModeCmd"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/MissionUploadCmd"
+    },
+    {
+      "$ref": "#/$defs/MissionDownloadCmd"
+    },
+    {
+      "$ref": "#/$defs/MissionClearCmd"
+    },
+    {
+      "$ref": "#/$defs/SetModeCmd"
+    }
+  ]
+}

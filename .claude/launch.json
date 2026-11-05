@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dashboard-api",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--app-dir", "dashboard/backend", "--port", "8000"],
+      "port": 8000
+    },
+    {
+      "name": "dashboard-web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "dashboard/frontend"],
+      "port": 5173
+    }
+  ]
+}

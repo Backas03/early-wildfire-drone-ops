@@ -1,0 +1,111 @@
+{
+  "$defs": {
+    "Detection": {
+      "properties": {
+        "cls": {
+          "enum": [
+            "fire",
+            "smoke"
+          ],
+          "title": "Cls",
+          "type": "string"
+        },
+        "conf": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Conf",
+          "type": "number"
+        },
+        "bbox": {
+          "description": "x1,y1,x2,y2 (0~1로 정규화)",
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Bbox",
+          "type": "array"
+        }
+      },
+      "required": [
+        "cls",
+        "conf",
+        "bbox"
+      ],
+      "title": "Detection",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "v": {
+      "default": 1,
+      "title": "V",
+      "type": "integer"
+    },
+    "ts": {
+      "title": "Ts",
+      "type": "integer"
+    },
+    "drone_id": {
+      "title": "Drone Id",
+      "type": "string"
+    },
+    "snapshot_id": {
+      "pattern": "^[A-Za-z0-9_-]{1,80}$",
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "frame_ts": {
+      "title": "Frame Ts",
+      "type": "integer"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "detections": {
+      "description": "엣지가 찾은 것 (bbox는 이 사진 기준)",
+      "items": {
+        "$ref": "#/$defs/Detection"
+      },
+      "title": "Detections",
+      "type": "array"
+    },
+    "jpeg_b64": {
+      "description": "JPEG 원본 (base64). 박스는 그리지 않는다",
+      "title": "Jpeg B64",
+      "type": "string"
+    }
+  },
+  "required": [
+    "drone_id",
+    "snapshot_id",
+    "frame_ts",
+    "width",
+    "height",
+    "model",
+    "detections",
+    "jpeg_b64"
+  ],
+  "title": "Snapshot",
+  "type": "object"
+}
