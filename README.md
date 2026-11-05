@@ -14,7 +14,7 @@
 | [`dashboard/frontend/`](dashboard/frontend/) | 대시보드 웹 (React + TypeScript + Vite + Leaflet) | 미션 계획, 실시간 관제 |
 | [`event-server/`](event-server/) | 이벤트·로깅 서버: 화재 판정, DB 저장, 알림 | 뼈대 |
 | [`drone-agent/`](drone-agent/) | 라즈베리파이용: Pixhawk(MAVLink) ⇄ MQTT 중계 | 텔레메트리, 미션 업로드·다운로드, 모드 변경 |
-| [`edge-ai/`](edge-ai/) | 라즈베리파이용: 카메라 → YOLOv8 불·연기 탐지 → MQTT (엣지 AI) | 시뮬레이션으로 확인 · 라즈베리파이 시험 전 |
+| [`edge-ai/`](edge-ai/) | 라즈베리파이용: 카메라 → YOLOv8 불·연기 탐지 → MQTT (엣지 AI) | 라즈베리파이 5에서 동작 확인 · 카메라 모듈 시험 전 |
 | [`models/`](models/) | 탐지 모델 (`fire_n`·`fire_s`, 받는 방법은 [`models/README.md`](models/README.md)) | |
 | [`sim/`](sim/) | 가짜 드론, SITL(가상 드론) 실행, 가상 조종사, **가상 카메라**(위성사진 + 가상 화재) | |
 | [`infra/`](infra/) | Mosquitto 등 설정 파일 | |
@@ -94,21 +94,47 @@ cd event-server; ..\.venv\Scripts\python.exe -m event_server.main
 - Mission Planner로 같은 SITL 보기: TCP 연결 → `127.0.0.1` : `5762`. Mission Planner에서 미션을 바꾸면 대시보드에도 반영된다.
 - `pilot.py takeoff --alt 20`: 시동 + 이륙 후 제자리 비행 (그다음 대시보드에서 `미션 시작·재개`).
 
-## 엣지 AI를 라즈베리파이에서 돌리기 (아직 시험 전)
+## 엣지 AI를 라즈베리파이에서 돌리기
 
 같은 프로그램을 카메라만 바꿔서 쓴다. 드론에 달기 전에 책상 위에서 속도·발열을 잴 수 있다.
+라즈베리파이 5 + Raspberry Pi OS 13(trixie, Python 3.13)에서 확인했다.
+
+**서버 PC 준비 (한 번, 관리자 PowerShell)**: Mosquitto가 바깥 접속을 받게 하고, 방화벽은 라즈베리파이 IP만 연다. 자세한 내용은 [`infra/mosquitto/mosquitto.conf`](infra/mosquitto/mosquitto.conf) 맨 위 주석.
+
+```powershell
+Copy-Item infra\mosquitto\mosquitto.conf "C:\Program Files\mosquitto\mosquitto.conf"
+New-NetFirewallRule -DisplayName "Mosquitto MQTT from pi-vitamin" -Direction Inbound -Protocol TCP -LocalPort 1883 -RemoteAddress <라즈베리파이 IP> -Action Allow -Profile Any
+Restart-Service mosquitto
+```
+
+공유기에서 라즈베리파이 IP를 고정(DHCP 예약)해 둔다. 방화벽 규칙이 그 IP를 기준으로 한다.
+
+**라즈베리파이 설치 (한 번)**
 
 ```bash
-sudo apt install -y python3-picamera2                    # 카메라 모듈 3 (pip 아님)
-python3 -m venv --system-site-packages .venv             # apt로 깐 picamera2를 보이게
+git clone https://github.com/Backas03/early-wildfire-drone-ops.git && cd early-wildfire-drone-ops
+sudo apt install -y python3-picamera2                    # 카메라 모듈 3 (pip 아님, 데스크톱 OS에는 이미 있음)
+python3 -m venv --system-site-packages .venv             # apt로 깐 picamera2·numpy를 보이게
+# PyTorch는 CPU 전용판을 먼저 깐다. 그냥 깔면 GPU(CUDA)판과 NVIDIA 라이브러리 4 GB가 같이 깔린다
+.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 .venv/bin/pip install -r edge-ai/requirements.txt -e shared
-# models/fire_n.pt를 받은 뒤 라즈베리파이용으로 변환 (한 번)
-.venv/bin/yolo export model=models/fire_n.pt format=ncnn imgsz=640
-.venv/bin/python edge-ai/edge.py --source picamera --model models/fire_n_ncnn_model --mqtt-host <서버 주소>
+```
+
+탐지 모델은 서버 PC에서 확인한 파일을 복사한 뒤 (서버 PC에서 `scp models/fire_n.pt pi-vitamin@pi-vitamin.lan:early-wildfire-drone-ops/models/`), 라즈베리파이용으로 바꾼다:
+
+```bash
+.venv/bin/yolo export model=models/fire_n.pt format=ncnn imgsz=640   # → models/fire_n_ncnn_model/
+```
+
+**실행**: `--mqtt-host`에는 서버 PC 이름(공유기가 붙여 준 `<PC 이름>.lan`)이나 IP를 쓴다.
+
+```bash
+.venv/bin/python edge-ai/edge.py --source picamera --model models/fire_n_ncnn_model --mqtt-host com12-45.lan
 ```
 
 - 대시보드 **실시간 관제 → 카메라 · AI 탐지**에서 초당 탐지 횟수, 추론 시간, CPU 온도를 볼 수 있다. 80°C를 넘으면 쿨러를 확인한다.
-- 영상 파일이나 웹캠으로도 시험할 수 있다: `--source video:파일.mp4`, `--source cam:0`
+- 카메라 없이 시험: `--source sim` (서버 PC에서 `sim/fake_drone.py`나 SITL을 켜 두면 그 위치에서 본 가상 카메라), `--source video:파일.mp4`, `--source cam:0`
+- 전원 확인: `vcgencmd get_throttled`가 `0x0`이 아니면 전압이 떨어진 적이 있다. 라즈베리파이 5는 5V 5A(27W) 전원이 필요하다.
 
 ## 미션 계획 화면 사용법
 
@@ -149,7 +175,7 @@ npm test --prefix dashboard/frontend    # 순찰 경로·미션 검증 계산
 | 0. 준비 | 10/27~10/29 | 도구 설치, 폴더 구조, 프로토콜 초안 | 완료 (SITL·Mission Planner는 직접 설치) |
 | 1. 미션 계획 화면 | 10/30~11/8 | 지도 웨이포인트 편집, 자동 순찰경로, 검증, 미션 저장, `.waypoints` 입출력 | 구현 완료 · Mission Planner 호환 확인 필요 |
 | 2. 드론 연결 | 11/9~11/22 | 미션 업로드/다운로드, 모드 변경, 실시간 지도 표시 | SITL로 구현·비행 확인 · 실기체 확인 필요 |
-| 3. 엣지 AI | 11/9~11/22 | 라즈베리파이 탐지(edge-ai), 가상 카메라, 탐지 사진 저장, 관제 화면 | 시뮬레이션으로 구현·확인 · 라즈베리파이 시험 필요 |
+| 3. 엣지 AI | 11/9~11/22 | 라즈베리파이 탐지(edge-ai), 가상 카메라, 탐지 사진 저장, 관제 화면 | 라즈베리파이 5에서 가상 카메라로 동작 확인 (NCNN 73 ms/장, 초당 3번) · 카메라 모듈 시험 필요 |
 | 3-2. 서버 재확인·영상 | 11/23~11/29 | 탐지 사진을 fire_s로 재확인, MediaMTX·브라우저 WebRTC 재생 | |
 | 4. 이벤트·로깅 | 11/23~12/6 | 화재 판정(낮은 고도·재확인 반영), DB, 알림, 비행 기록 | |
 | 5. 실기체 통합 | 12/7~ | RPi 설치, Tailscale, 벤치 테스트 → 시험 비행 | |

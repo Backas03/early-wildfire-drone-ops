@@ -7,10 +7,12 @@ curl.exe -fL -o models/fire_n.pt https://raw.githubusercontent.com/AlimTleuliyev
 curl.exe -fL -o models/fire_s.pt https://raw.githubusercontent.com/AlimTleuliyev/wildfire-detection/main/fire-models/fire_s.pt
 ```
 
-| 파일 | 크기 | 쓰는 곳 | mAP@50 (D-Fire) | 이 PC CPU (i5-10500) |
-|---|---|---|---|---|
-| `fire_n.pt` | 6 MB | 드론 엣지 AI (라즈베리파이) | 0.787 | 35 ms/장 |
-| `fire_s.pt` | 22 MB | 서버 재확인 (예정) | 0.798 | 64 ms/장 |
+| 파일 | 크기 | 쓰는 곳 | mAP@50 (D-Fire) | 이 PC CPU (i5-10500) | 라즈베리파이 5 (NCNN) |
+|---|---|---|---|---|---|
+| `fire_n.pt` | 6 MB | 드론 엣지 AI (라즈베리파이) | 0.787 | 35 ms/장 | 73 ms/장 |
+| `fire_s.pt` | 22 MB | 서버 재확인 (예정) | 0.798 | 64 ms/장 | — |
+
+라즈베리파이 5 값은 입력 640, 초당 3번 탐지(가상 카메라 그리기 포함), 쿨러 미확인 상태에서 잰 것이다 (2026-11-05). CPU 온도는 2분 뒤 60°C.
 
 - 클래스: 0 = `smoke`, 1 = `fire` (코드는 번호가 아니라 이름으로 연결한다).
 - 옛 Ultralytics(8.0)로 저장된 파일이라 `ultralytics.yolo.utils` 같은 옛 모듈 이름이 들어 있지만, 최신 Ultralytics(8.4)가 그대로 읽는다.
