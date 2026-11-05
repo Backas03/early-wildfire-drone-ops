@@ -32,6 +32,7 @@ from protocol import (
     CommandAdapter,
     DroneMission,
     DroneStatus,
+    GotoCmd,
     MissionClearCmd,
     MissionDownloadCmd,
     MissionPlan,
@@ -42,11 +43,12 @@ from protocol import (
     topics,
 )
 
-AGENT_VERSION = "0.2.0"
+AGENT_VERSION = "0.3.0"
 log = logging.getLogger("drone-agent")
 
 SYNC = "sync"  # 미션 작업 큐에 넣는 내부 작업: FC 미션을 읽어 발행
 QUIET_AFTER_TRANSFER_S = 3.0  # 우리가 바꾼 미션을 "다른 GCS가 바꿨다"로 착각하지 않게
+GOTO_MIN_ALT_M = 1.0  # 이보다 낮으면 땅에 있는 것으로 본다 (GUIDED는 땅에서 스스로 뜨지 않음)
 # 마지막으로 올린 미션 (FC는 이름을 저장하지 않으므로, agent를 다시 켜도 이름을 살리려고 남긴다)
 STATE_DIR = Path(__file__).resolve().parent / "state"
 
@@ -153,7 +155,7 @@ class Agent:
             self.ack(cmd.cmd_id, "failed", error="FC 연결 안 됨")
             return
         self.ack(cmd.cmd_id, "accepted")
-        (self.mode_jobs if isinstance(cmd, SetModeCmd) else self.mission_jobs).put(cmd)
+        (self.mode_jobs if isinstance(cmd, (SetModeCmd, GotoCmd)) else self.mission_jobs).put(cmd)
 
     def _progress(self, cmd_id: str):
         last = [-1.0]
@@ -268,10 +270,13 @@ class Agent:
     def mode_worker(self) -> None:
         while not self.stop.is_set():
             try:
-                cmd: SetModeCmd = self.mode_jobs.get(timeout=0.5)
+                cmd: SetModeCmd | GotoCmd = self.mode_jobs.get(timeout=0.5)
             except queue.Empty:
                 continue
             t0 = time.monotonic()
+            if isinstance(cmd, GotoCmd):
+                self._goto(cmd, t0)
+                continue
             try:
                 number = self.link.mode_number(cmd.mode)
                 if number is None:
@@ -287,6 +292,25 @@ class Agent:
                 error = f"{e} — {' / '.join(reasons[-2:])}" if reasons else str(e)
                 log.warning("모드 변경 실패: %s", error)
                 self.ack(cmd.cmd_id, "failed", error=error)
+
+    def _goto(self, cmd: GotoCmd, t0: float) -> None:
+        try:
+            s = self.link.state
+            with s.lock:
+                pos = s.msgs.get("GLOBAL_POSITION_INT")
+            if not s.armed:
+                raise mt.FcError("시동이 꺼져 있어요. 떠 있는 드론만 보낼 수 있어요 (시동·이륙은 조종기로).")
+            if pos is None or pos.relative_alt / 1000 < GOTO_MIN_ALT_M:
+                raise mt.FcError("드론이 아직 땅에 있어요. 이륙한 뒤에 보내세요.")
+            mt.reposition(self.link.command_port, cmd.lat, cmd.lon, cmd.alt)
+            log.info("위치로 보냄: %.6f, %.6f, %.0f m", cmd.lat, cmd.lon, cmd.alt)
+            self.ack(cmd.cmd_id, "succeeded")
+        except (mt.FcError, ConnectionError) as e:
+            time.sleep(0.3)
+            reasons = self._texts_since(t0 - 0.2)
+            error = f"{e} — {' / '.join(reasons[-2:])}" if reasons else str(e)
+            log.warning("위치로 보내기 실패: %s", error)
+            self.ack(cmd.cmd_id, "failed", error=error)
 
     # ------------------------------------------------------------------ 메인 루프
     def run(self) -> None:

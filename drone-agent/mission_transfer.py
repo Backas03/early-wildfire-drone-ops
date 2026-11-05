@@ -4,11 +4,13 @@
 - 미션 다운로드: MISSION_REQUEST_LIST → (FC) MISSION_COUNT → MISSION_REQUEST_INT/ITEM_INT × N → MISSION_ACK
 - 미션 삭제:    MISSION_CLEAR_ALL → (FC) MISSION_ACK
 - 모드 변경:    COMMAND_LONG(DO_SET_MODE) → (FC) COMMAND_ACK
+- 위치로 보내기: COMMAND_INT(DO_REPOSITION, GUIDED로 바꾸기 포함) → (FC) COMMAND_ACK
 
 MAVLink 연결은 Port(send/recv)로만 쓴다. 실제로는 fc_link.FcLink가, 테스트에서는 가짜 FC가 붙는다.
 번호 규칙: MAVLink 0번은 홈, 1번부터가 MissionPlan.items[0]부터다.
 """
 
+import math
 import time
 from collections.abc import Callable
 from typing import Any, NamedTuple, Protocol
@@ -32,6 +34,9 @@ MAV_MISSION_ACCEPTED = 0
 MAV_CMD_DO_SET_MODE = 176
 MAV_MODE_FLAG_CUSTOM_MODE_ENABLED = 1
 MAV_RESULT_ACCEPTED = 0
+MAV_CMD_DO_REPOSITION = 192
+MAV_DO_REPOSITION_FLAGS_CHANGE_MODE = 1  # GUIDED가 아니면 GUIDED로 바꾼 뒤 간다
+MAV_FRAME_GLOBAL_RELATIVE_ALT = 3
 
 # 사람이 읽을 수 있게 (pymavlink 없이도 테스트가 돌도록 직접 적어 둔다)
 MISSION_RESULT = {
@@ -233,3 +238,21 @@ def set_mode(port: Port, custom_mode: int, timeout: float = 1.5, retries: int = 
             raise FcError(f"FC가 모드 변경을 거부함 ({COMMAND_RESULT.get(ack.result, ack.result)})")
         return
     raise FcError("FC 응답 없음 (모드 변경)")
+
+
+def reposition(port: Port, lat: float, lon: float, alt: float, timeout: float = 1.5, retries: int = 3) -> None:
+    """GUIDED로 바꾸고 (lat, lon, 홈 기준 alt)로 보낸다. 도착하면 그 자리에 멈춘다. FC가 거부하면 FcError."""
+    port.drain()
+    for _ in range(retries):
+        # COMMAND_INT: frame, command, current, autocontinue, param1(속도, -1=기본) param2(플래그) param3 param4(방향, NaN=그대로), x, y, z
+        port.send(
+            "command_int", MAV_FRAME_GLOBAL_RELATIVE_ALT, MAV_CMD_DO_REPOSITION, 0, 0,
+            -1, MAV_DO_REPOSITION_FLAGS_CHANGE_MODE, 0, math.nan, round(lat * 1e7), round(lon * 1e7), alt,
+        )
+        ack = _recv_where(port, {"COMMAND_ACK"}, lambda m: m.command == MAV_CMD_DO_REPOSITION, timeout)
+        if ack is None:
+            continue
+        if ack.result != MAV_RESULT_ACCEPTED:
+            raise FcError(f"FC가 위치 이동을 거부함 ({COMMAND_RESULT.get(ack.result, ack.result)})")
+        return
+    raise FcError("FC 응답 없음 (위치 이동)")

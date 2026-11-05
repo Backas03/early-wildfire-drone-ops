@@ -31,6 +31,7 @@ class FakeFC:
         self.incoming: list[mt.Row | None] | None = None
         self.waiting: int | None = None
         self.modes: list[int] = []
+        self.targets: list[tuple] = []
 
     # --- Port ---
     def send(self, name, *args):
@@ -103,6 +104,10 @@ class FakeFC:
     # --- 모드 ---
     def on_command_long(self, command, confirmation, *params):
         self.modes.append(int(params[1]))
+        self.out.append(msg("COMMAND_ACK", command=command, result=self.mode_result))
+
+    def on_command_int(self, frame, command, current, autocontinue, p1, p2, p3, p4, x, y, z):
+        self.targets.append((frame, command, p2, x, y, z))
         self.out.append(msg("COMMAND_ACK", command=command, result=self.mode_result))
 
 
@@ -197,6 +202,17 @@ def test_set_mode():
     assert fc.modes == [6]
     with pytest.raises(mt.FcError, match="거부됨"):
         mt.set_mode(FakeFC(mode_result=2), 3, **FAST)
+
+
+def test_reposition():
+    fc = FakeFC()
+    mt.reposition(fc, 35.8964123, 128.8495, 30, **FAST)
+    # 홈 기준 고도 좌표계(3), DO_REPOSITION(192), GUIDED로 바꾸기 플래그(1), 좌표는 1e7 정수
+    assert fc.targets == [(3, 192, 1, 358964123, 1288495000, 30)]
+    with pytest.raises(mt.FcError, match="위치 이동을 거부함 \(거부됨\)"):
+        mt.reposition(FakeFC(mode_result=2), 35.9, 128.8, 30, **FAST)
+    with pytest.raises(mt.FcError, match="응답 없음"):
+        mt.reposition(FakeFC(silent=True), 35.9, 128.8, 30, **FAST)
 
 
 def test_same_items_tolerates_fc_rounding():
